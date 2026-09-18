@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}Editar perfil — {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>
+  .cfg { padding: 2.5rem 0 4rem; }
+  .cfg-capa {
+    position: relative;
+    height: 170px;
+    border-radius: var(--r-lg);
+    border: 1px dashed var(--line);
+    background-size: cover; background-position: center;
+    display: grid; place-items: center;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .cfg-capa:hover { border-color: var(--accent); }
+  .cfg-capa span {
+    padding: .4rem .8rem; border-radius: var(--r);
+    background: rgba(7,10,20,.75); font-size: .85rem; color: var(--ink-soft);
+  }
+  .cfg-foto {
+    width: 96px; height: 96px;
+    border-radius: var(--r-lg);
+    border: 2px solid var(--line);
+    background: var(--surface-2);
+    display: grid; place-items: center;
+    overflow: hidden; cursor: pointer;
+    font-family: var(--font-display); font-size: 2rem; color: var(--ink-mute);
+  }
+  .cfg-foto:hover { border-color: var(--accent); }
+  .cfg-foto img { width: 100%; height: 100%; object-fit: cover; }
+
+  .bloco-vitrine { border: 1px solid var(--line-soft); border-radius: var(--r); padding: .9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow cfg">
+  <div class="row-between" style="margin-bottom:1.75rem">
+    <div>
+      <p class="eyebrow">Sua identidade</p>
+      <h1 style="margin:0">Editar perfil</h1>
+    </div>
+    <a class="btn btn-ghost" href="/u/{{ user.username }}">Ver perfil</a>
+  </div>
+
+  <form id="form-perfil" class="stack stack-lg">
+
+    <!-- ---------- Imagens ---------- -->
+    <section class="stack stack-md">
+      <div class="cfg-capa" id="area-banner"
+           {% if user.banner_url %}style="background-image:url('{{ user.banner_url }}')"{% endif %}>
+        <span>Clique para trocar a capa</span>
+      </div>
+
+      <div class="row" style="gap:1rem;margin-top:-52px;padding-left:1rem;position:relative;z-index:2">
+        <div class="cfg-foto" id="area-avatar">
+          {% if user.avatar_url %}<img src="{{ user.avatar_url }}" alt="">{% else %}{{ user.initials }}{% endif %}
+        </div>
+        <p class="small muted" style="align-self:flex-end;margin:0 0 .4rem">
+          PNG, JPG, WEBP ou GIF.
+        </p>
+      </div>
+    </section>
+
+    <!-- ---------- Identidade ---------- -->
+    <section class="card card-pad stack stack-md">
+      <h3 style="margin:0">Identidade</h3>
+
+      <div class="field">
+        <label class="label" for="display_name">Nome de exibição</label>
+        <input class="input" id="display_name" name="display_name"
+               value="{{ user.display_name }}" maxlength="48" required>
+      </div>
+
+      <div class="field">
+        <label class="label" for="tagline">Frase curta</label>
+        <input class="input" id="tagline" name="tagline" maxlength="140"
+               value="{{ user.tagline or '' }}"
+               placeholder="Mestre de mesas longas e prazos curtos">
+      </div>
+
+      <div class="field">
+        <label class="label" for="bio">Sobre você</label>
+        <textarea class="textarea" id="bio" name="bio" rows="6" maxlength="4000"
+                  placeholder="Sistemas favoritos, horários que costuma jogar, o que procura numa mesa…">{{ user.bio or '' }}</textarea>
+      </div>
+
+      <div class="row row-wrap" style="gap:1rem">
+        <div class="field grow">
+          <label class="label" for="pronouns">Pronomes</label>
+          <input class="input" id="pronouns" name="pronouns" maxlength="32"
+                 value="{{ user.pronouns or '' }}" placeholder="ele/dele">
+        </div>
+        <div class="field grow">
+          <label class="label" for="location">Onde você está</label>
+          <input class="input" id="location" name="location" maxlength="64"
+                 value="{{ user.location or '' }}" placeholder="Brasil">
+        </div>
+        <div class="field" style="max-width:120px">
+          <label class="label" for="accent_color">Cor do perfil</label>
+          <input class="input" id="accent_color" name="accent_color" type="color"
+                 value="{{ user.accent_color }}" style="height:40px;padding:.2rem">
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Vitrine ---------- -->
+    <section class="card card-pad stack stack-md">
+      <div class="row-between">
+        <div>
+          <h3 style="margin:0">Vitrine</h3>
+          <p class="small muted" style="margin:.2rem 0 0">
+            Blocos livres que aparecem na lateral do seu perfil.
+          </p>
+        </div>
+        <button class="btn btn-ghost btn-sm" type="button" id="add-bloco">+ Bloco</button>
+      </div>
+      <div class="stack stack-md" id="vitrine"></div>
+    </section>
+
+    <div class="alert alert-error hidden" data-error></div>
+
+    <div class="row" style="justify-content:flex-end;gap:.6rem">
+      <a class="btn btn-ghost" href="/u/{{ user.username }}">Cancelar</a>
+      <button class="btn btn-primary btn-lg" type="submit">Salvar perfil</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const { el } = SB;
+  let AVATAR = {{ (user.avatar_url or "") | tojson }};
+  let BANNER = {{ (user.banner_url or "") | tojson }};
+  let VITRINE = {{ (user.showcase or []) | to_json }};
+
+  /* ---------- Upload de imagens ---------- */
+  function ligarUpload(area, tipo, aplicar) {
+    area.addEventListener("click", () => {
+      const entrada = el("input", { type: "file", accept: "image/*" });
+      entrada.addEventListener("change", async () => {
+        const arquivo = entrada.files?.[0];
+        if (!arquivo) return;
+        const dados = new FormData();
+        dados.append("file", arquivo);
+        dados.append("kind", tipo);
+        await SB.run(async () => {
+          const enviado = await SB.api("/api/upload", { method: "POST", body: dados });
+          aplicar(enviado.url);
+          SB.toast("Imagem enviada. Não esqueça de salvar.", "ok");
+        });
+      });
+      entrada.click();
+    });
+  }
+
+  ligarUpload(document.getElementById("area-avatar"), "avatar", (url) => {
+    AVATAR = url;
+    document.getElementById("area-avatar").innerHTML = `<img src="${url}" alt="">`;
+  });
+  ligarUpload(document.getElementById("area-banner"), "banner", (url) => {
+    BANNER = url;
+    document.getElementById("area-banner").style.backgroundImage = `url('${url}')`;
+  });
+
+  /* ---------- Editor da vitrine ---------- */
+  const hostVitrine = document.getElementById("vitrine");
+
+  function desenharVitrine() {
+    hostVitrine.innerHTML = "";
+    if (!VITRINE.length) {
+      hostVitrine.append(el("p", { class: "small muted", style: { margin: 0 } },
+        "Nenhum bloco ainda. Use-os para links, horários ou sistemas favoritos."));
+      return;
+    }
+
+    VITRINE.forEach((bloco, indiceBloco) => {
+      const titulo = el("input", { class: "input", value: bloco.title, maxlength: 60, placeholder: "Título do bloco" });
+      titulo.addEventListener("input", () => { bloco.title = titulo.value; });
+
+      const tipo = el("select", { class: "select", style: { maxWidth: "160px" } });
+      for (const [valor, rotulo] of [["links", "Links"], ["text", "Texto"], ["systems", "Sistemas"]]) {
+        const item = el("option", { value: valor }, rotulo);
+        if (valor === bloco.type) item.selected = true;
+        tipo.append(item);
+      }
+      tipo.addEventListener("change", () => { bloco.type = tipo.value; });
+
+      const itens = el("div", { class: "stack", style: { gap: ".4rem" } });
+      function desenharItens() {
+        itens.innerHTML = "";
+        (bloco.items || []).forEach((item, indiceItem) => {
+          const rotulo = el("input", { class: "input", value: item.label, placeholder: "Rótulo", maxlength: 80 });
+          const valor = el("input", { class: "input", value: item.value, placeholder: bloco.type === "links" ? "https://…" : "Valor", maxlength: 400 });
+          rotulo.addEventListener("input", () => { item.label = rotulo.value; });
+          valor.addEventListener("input", () => { item.value = valor.value; });
+
+          itens.append(el("div", { class: "row", style: { gap: ".4rem" } },
+            rotulo, valor,
+            el("button", {
+              class: "btn btn-ghost btn-icon", type: "button", title: "Remover",
+              onClick: () => { bloco.items.splice(indiceItem, 1); desenharItens(); },
+            }, "✕")));
+        });
+
+        itens.append(el("button", {
+          class: "btn btn-ghost btn-sm", type: "button",
+          onClick: () => {
+            bloco.items = bloco.items || [];
+            bloco.items.push({ label: "", value: "" });
+            desenharItens();
+          },
+        }, "+ Item"));
+      }
+      desenharItens();
+
+      hostVitrine.append(el("div", { class: "bloco-vitrine stack", style: { gap: ".6rem" } },
+        el("div", { class: "row", style: { gap: ".5rem" } },
+          titulo, tipo,
+          el("button", {
+            class: "btn btn-danger btn-icon", type: "button", title: "Apagar bloco",
+            onClick: () => { VITRINE.splice(indiceBloco, 1); desenharVitrine(); },
+          }, "🗑")),
+        itens));
+    });
+  }
+
+  document.getElementById("add-bloco").addEventListener("click", () => {
+    if (VITRINE.length >= 8) return SB.toast("Máximo de 8 blocos.", "error");
+    VITRINE.push({
+      id: `b${Date.now().toString(36)}`,
+      type: "links",
+      title: "Novo bloco",
+      items: [{ label: "", value: "" }],
+    });
+    desenharVitrine();
+  });
+
+  desenharVitrine();
+
+  /* ---------- Salvar ---------- */
+  document.getElementById("form-perfil").addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const form = evento.target;
+    const erro = form.querySelector("[data-error]");
+    const botao = form.querySelector('[type="submit"]');
+    erro.classList.add("hidden");
+    botao.disabled = true;
+    botao.textContent = "Salvando…";
+
+    const corpo = Object.fromEntries(new FormData(form));
+    corpo.avatar_url = AVATAR || null;
+    corpo.banner_url = BANNER || null;
+    corpo.showcase = VITRINE
+      .filter((bloco) => bloco.title.trim())
+      .map((bloco) => ({
+        ...bloco,
+        items: (bloco.items || []).filter((item) => item.label.trim() || item.value.trim()),
+      }));
+    for (const chave of ["tagline", "bio", "pronouns", "location"]) {
+      if (corpo[chave] === "") corpo[chave] = null;
+    }
+
+    try {
+      await SB.api("/api/perfil", { method: "PATCH", body: corpo });
+      window.location.href = "/u/{{ user.username }}";
+    } catch (falha) {
+      erro.textContent = falha.message;
+      erro.classList.remove("hidden");
+      botao.disabled = false;
+      botao.textContent = "Salvar perfil";
+    }
+  });
+</script>
+{% endblock %}

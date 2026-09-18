@@ -1,0 +1,33 @@
+{% extends "auth/_shell.html" %}
+{% block title %}Entrar — {{ app_name }}{% endblock %}
+
+{% block form %}
+  <p class="eyebrow">Bem-vindo de volta</p>
+  <h1>Entrar</h1>
+  <p class="muted small" style="margin-bottom:1.6rem">
+    Continue de onde a sessão parou.
+  </p>
+
+  <form method="post" action="/api/entrar" data-api data-loading="Entrando…"
+        data-redirect="{{ proximo }}" class="stack stack-md">
+    <div class="alert alert-error hidden" data-error></div>
+
+    <div class="field">
+      <label class="label" for="identifier">E-mail ou usuário</label>
+      <input class="input" id="identifier" name="identifier" autocomplete="username"
+             required autofocus placeholder="agente@triangle.com">
+    </div>
+
+    <div class="field">
+      <label class="label" for="password">Senha</label>
+      <input class="input" id="password" name="password" type="password"
+             autocomplete="current-password" required placeholder="••••••••">
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button>
+  </form>
+
+  <p class="auth-foot">
+    Ainda não tem conta? <a href="/cadastro">Criar uma agora</a>
+  </p>
+{% endblock %}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}StoryBook — mesa virtual e rede social para RPG. Crie salas, fichas e jogue com seus amigos.{% endblock %}">
+  <meta name="theme-color" content="#070a14">
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body {% if body_class %}class="{{ body_class }}"{% endif %}>
+
+  {% block nav %}
+    {% include "partials/nav.html" %}
+  {% endblock %}
+
+  <main id="conteudo">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block footer %}{% endblock %}
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script>
+    window.SB = {
+      csrf: {{ (csrf_token or "") | tojson }},
+      user: {{ (user and {
+        "id": user.id, "username": user.username,
+        "display_name": user.display_name, "avatar_url": user.avatar_url,
+        "initials": user.initials
+      }) | to_json }}
+    };
+  </script>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

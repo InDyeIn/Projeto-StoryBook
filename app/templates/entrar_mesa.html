@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Entrar em uma mesa — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow" style="padding:4rem 0">
+  <div class="card card-pad" style="max-width:460px;margin-inline:auto">
+    <p class="eyebrow">Convite</p>
+    <h1 style="font-size:1.6rem">Entrar em uma mesa</h1>
+    <p class="muted small" style="margin-bottom:1.5rem">
+      Digite o código que o mestre te passou.
+    </p>
+
+    <form method="post" action="/api/salas/entrar" data-api data-loading="Procurando…" class="stack stack-md">
+      <div class="alert alert-error hidden" data-error></div>
+      <div class="field">
+        <label class="label" for="codigo">Código do convite</label>
+        <input class="input mono" id="codigo" name="invite_code" required maxlength="12"
+               value="{{ codigo }}" autofocus placeholder="XK4P9TZ2"
+               style="text-transform:uppercase;letter-spacing:.2em;font-size:1.1rem">
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button>
+    </form>
+
+    <p class="center small muted" style="margin:1.2rem 0 0">
+      <a href="/painel">Voltar ao painel</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

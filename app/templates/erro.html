@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Erro {{ status }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow section center">
+  <p class="eyebrow">Transmissão interrompida</p>
+  <h1 style="font-size:clamp(3rem,12vw,6rem);margin:.2em 0">{{ status }}</h1>
+  <p class="soft" style="font-size:1.05rem">
+    {{ detail or "Alguma coisa saiu do lugar." }}
+  </p>
+  <div class="row" style="justify-content:center;margin-top:2rem">
+    <a class="btn btn-primary" href="{{ '/painel' if user else '/' }}">Voltar ao início</a>
+  </div>
+</div>
+{% endblock %}

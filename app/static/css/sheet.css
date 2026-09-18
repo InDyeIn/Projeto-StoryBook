@@ -1,0 +1,196 @@
+/* =========================================================================
+   Ficha de personagem — desenhada a partir da definição do sistema.
+   Nenhuma regra aqui conhece Triangle Agency: só tipos de campo.
+   ========================================================================= */
+
+.ficha { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.ficha-topo {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.ficha-retrato {
+  position: relative;
+  width: 74px; height: 74px;
+  flex: 0 0 74px;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  color: var(--ink-mute);
+  cursor: pointer;
+}
+.ficha-retrato img { width: 100%; height: 100%; object-fit: cover; }
+.ficha-retrato:hover::after {
+  content: "trocar";
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.65);
+  font-family: var(--font-ui); font-size: .72rem; color: #fff;
+}
+
+.ficha-nome {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  padding: .2rem .4rem;
+  margin-left: -.4rem;
+  width: 100%;
+}
+.ficha-nome:hover:not(:disabled) { border-color: var(--line); }
+.ficha-nome:focus { outline: none; border-color: var(--accent); background: var(--deep); }
+
+.ficha-aviso {
+  display: flex; gap: .6rem;
+  padding: .7rem .9rem;
+  border-radius: var(--r);
+  background: rgba(255,196,107,.09);
+  border: 1px solid rgba(255,196,107,.28);
+  color: #ffdca8;
+  font-size: .82rem;
+}
+
+/* --- Seções ---------------------------------------------------------- */
+.ficha-secao { border: 1px solid var(--line-soft); border-radius: var(--r-lg); overflow: hidden; }
+
+.ficha-secao-topo {
+  display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+  padding: .7rem 1rem;
+  background: rgba(255,255,255,.02);
+  border-bottom: 1px solid var(--line-soft);
+}
+.ficha-secao-topo h4 { margin: 0; font-size: .95rem; }
+.ficha-secao-topo p { margin: 0; font-size: .78rem; color: var(--ink-mute); }
+
+.ficha-campos {
+  display: grid;
+  gap: .85rem;
+  padding: 1rem;
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+}
+@media (max-width: 620px) { .ficha-campos { grid-template-columns: 1fr; } }
+
+.campo { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.campo[data-span="2"] { grid-column: span 2; }
+.campo[data-span="full"] { grid-column: 1 / -1; }
+@media (max-width: 620px) { .campo[data-span="2"] { grid-column: 1 / -1; } }
+
+.campo-topo { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.campo-rotulo {
+  font-size: .72rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+.campo-gm { color: var(--amber); }
+
+.campo input[type="text"],
+.campo input[type="number"],
+.campo textarea,
+.campo select {
+  width: 100%;
+  padding: .45rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--deep);
+  color: var(--ink);
+  font: inherit; font-size: .9rem;
+}
+.campo textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+.campo input:focus, .campo textarea:focus, .campo select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.campo input:disabled, .campo textarea:disabled, .campo select:disabled {
+  opacity: .75; cursor: default; background: var(--surface);
+}
+
+.btn-rolar {
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-size: .85rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-rolar:hover { border-color: var(--accent); color: var(--accent-soft); transform: translateY(-1px); }
+
+/* --- Bolinhas (dots) -------------------------------------------------- */
+.dots { display: flex; gap: 5px; flex-wrap: wrap; padding: .25rem 0; }
+.dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--deep);
+  cursor: pointer;
+  padding: 0;
+  transition: all .12s var(--ease);
+}
+.dot:hover { border-color: var(--accent-soft); transform: scale(1.12); }
+.dot.is-on { background: var(--accent); border-color: var(--accent-soft); box-shadow: 0 0 10px -2px var(--accent); }
+.dots.is-locked .dot { cursor: default; }
+.dots.is-locked .dot:hover { transform: none; border-color: var(--line); }
+.dots.is-locked .dot.is-on:hover { border-color: var(--accent-soft); }
+
+/* --- Recurso (atual / máximo) ---------------------------------------- */
+.recurso { display: flex; flex-direction: column; gap: .35rem; }
+.recurso-valores { display: flex; align-items: center; gap: .3rem; }
+.campo .recurso-valores input[type="number"] {
+  width: 62px;
+  flex: 0 0 62px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: .95rem;
+}
+.recurso-valores > .muted { flex: 0 0 auto; }
+.recurso-barra { height: 8px; border-radius: 999px; background: var(--deep); border: 1px solid var(--line-soft); overflow: hidden; }
+.recurso-fill { height: 100%; border-radius: 999px; transition: width .3s var(--ease); }
+.recurso-passo {
+  width: 26px; height: 26px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface-2); color: var(--ink-soft);
+  cursor: pointer; font-size: .9rem; line-height: 1;
+}
+.recurso-passo:hover { border-color: var(--accent); color: var(--ink); }
+
+/* --- Listas ----------------------------------------------------------- */
+.lista { border: 1px solid var(--line-soft); border-radius: var(--r); overflow: hidden; }
+.lista table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.lista th {
+  text-align: left; padding: .45rem .6rem;
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-mute); font-weight: 600;
+  background: rgba(255,255,255,.02);
+  border-bottom: 1px solid var(--line-soft);
+}
+.lista td { padding: .2rem .3rem; border-bottom: 1px solid var(--line-soft); }
+.lista tr:last-child td { border-bottom: 0; }
+.lista td input[type="text"], .lista td input[type="number"] {
+  border-color: transparent; background: transparent; padding: .35rem .4rem;
+}
+.lista td input:hover:not(:disabled) { border-color: var(--line); }
+.lista-acao { width: 34px; text-align: center; }
+.lista-remover {
+  border: 0; background: transparent; color: var(--ink-faint);
+  cursor: pointer; font-size: 1rem; padding: .2rem .4rem; border-radius: 6px;
+}
+.lista-remover:hover { color: var(--red); background: rgba(255,107,107,.1); }
+.lista-vazia { padding: .9rem; text-align: center; color: var(--ink-faint); font-size: .82rem; }
+
+.ficha-salvando {
+  position: absolute; top: .8rem; right: 3.2rem;
+  font-size: .72rem; color: var(--ink-mute);
+  opacity: 0; transition: opacity .2s;
+}
+.ficha-salvando.is-on { opacity: 1; }

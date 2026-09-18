@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow" style="padding:4rem 0">
+  <div class="card card-pad" style="max-width:520px;margin-inline:auto">
+    <p class="eyebrow">Mesa pública</p>
+    <h1 style="font-size:1.8rem;margin-bottom:.2em">{{ room.name }}</h1>
+    <div class="row row-wrap" style="gap:.5rem;margin-bottom:1.2rem">
+      <span class="badge" style="color:{{ system.color }}">{{ system.name }}</span>
+      <span class="badge">{{ room.members|length }}/{{ room.max_players + 1 }} na mesa</span>
+    </div>
+
+    {% if room.description %}
+      <p class="soft" style="white-space:pre-wrap">{{ room.description }}</p>
+    {% endif %}
+
+    <div class="row" style="gap:.6rem;margin-top:1.75rem">
+      <button class="btn btn-primary btn-lg" id="entrar-mesa"
+              data-codigo="{{ room.invite_code }}">Entrar nesta mesa</button>
+      <a class="btn btn-ghost btn-lg" href="/painel">Voltar</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("entrar-mesa").addEventListener("click", async (evento) => {
+    await SB.run(async () => {
+      const resposta = await SB.api("/api/salas/entrar", {
+        method: "POST",
+        body: { invite_code: evento.currentTarget.dataset.codigo },
+      });
+      window.location.href = resposta.redirect;
+    });
+  });
+</script>
+{% endblock %}

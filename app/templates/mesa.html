@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }} — {{ app_name }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/table.css">
+<link rel="stylesheet" href="/static/css/sheet.css">
+{% endblock %}
+
+{% block nav %}
+<nav class="nav">
+  <a class="brand" href="/painel">
+    <span class="brand-mark">SB</span>
+  </a>
+  <div style="min-width:0">
+    <div class="row" style="gap:.5rem">
+      <strong id="nome-da-mesa" class="truncate" style="font-size:.98rem">{{ room.name }}</strong>
+      <span class="badge nowrap" style="color:{{ system.color }}">{{ system.short_name }}</span>
+      {% if system.status == 'draft' %}
+        <span class="badge badge-warn nowrap" title="{{ system.draft_note }}">rascunho</span>
+      {% endif %}
+    </div>
+    <div class="small muted truncate">{{ estado.scene.name }}</div>
+  </div>
+
+  <span class="spacer"></span>
+
+  <div class="row" style="gap:.5rem">
+    {% if estado.room.invite_code %}
+      <button class="btn btn-ghost btn-sm mono" id="copiar-convite"
+              data-codigo="{{ estado.room.invite_code }}"
+              title="Copiar código de convite">
+        {{ estado.room.invite_code }}
+      </button>
+    {% endif %}
+    <a class="btn btn-ghost btn-sm" href="/painel">Sair da mesa</a>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="mesa">
+
+  <!-- ==================== MAPA ==================== -->
+  <div class="mesa-palco">
+    <div class="mapa-viewport" id="mapa-viewport">
+      <div class="mapa-mundo" id="mapa-mundo">
+        <div class="mapa-fundo" id="mapa-fundo"></div>
+        <div class="mapa-grade" id="mapa-grade"></div>
+      </div>
+    </div>
+
+    <div class="mapa-ferramentas">
+      {% if 'token.create' in minhas_permissoes %}
+        <button class="btn btn-ghost btn-sm" id="novo-token" title="Criar token avulso">+ Token</button>
+      {% endif %}
+      {% if 'scene.create' in minhas_permissoes %}
+        <button class="btn btn-ghost btn-sm" id="nova-cena" title="Criar outra cena">+ Cena</button>
+      {% endif %}
+    </div>
+
+    {% if estado.scenes|length > 1 %}
+      <div class="mapa-cenas">
+        {% for cena in estado.scenes %}
+          <button class="chip {{ 'is-on' if cena.is_active }}"
+                  {% if 'scene.switch' in minhas_permissoes %}data-trocar-cena="{{ cena.id }}"{% else %}disabled{% endif %}
+                  title="{{ cena.name }}">
+            {{ cena.name }}
+          </button>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="mapa-zoom">
+      <button class="btn btn-ghost btn-sm" id="zoom-menos" aria-label="Diminuir zoom">−</button>
+      <span id="nivel-zoom" class="mono" style="min-width:42px;text-align:center">100%</span>
+      <button class="btn btn-ghost btn-sm" id="zoom-mais" aria-label="Aumentar zoom">+</button>
+      <button class="btn btn-ghost btn-sm" id="zoom-centro" title="Centralizar">⌖</button>
+    </div>
+
+    <div class="aviso-conexao hidden" id="aviso-conexao">Reconectando à mesa…</div>
+  </div>
+
+  <!-- ==================== PAINEL LATERAL ==================== -->
+  <aside class="mesa-lateral">
+    <div class="tabs">
+      <button class="tab is-active" data-aba="chat">Chat</button>
+      <button class="tab" data-aba="fichas">Fichas</button>
+      <button class="tab" data-aba="mesa">Mesa</button>
+      {% if 'scene.edit' in minhas_permissoes %}
+        <button class="tab" data-aba="cena">Cena</button>
+      {% endif %}
+    </div>
+
+    <!-- ---------- CHAT ---------- -->
+    <div class="aba-conteudo is-active" id="aba-chat">
+      <div class="chat-lista" id="chat-lista"></div>
+      <div class="digitando" id="digitando"></div>
+
+      <div class="chat-entrada">
+        <textarea id="chat-entrada" rows="1" maxlength="4000"
+                  placeholder="Fale com a mesa…  (/r 2d6+1 rola dados)"></textarea>
+        <div class="row-between" style="margin-top:.45rem">
+          <div class="chat-dicas" id="chat-dicas"></div>
+          <button class="btn btn-primary btn-sm" id="chat-enviar">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- FICHAS ---------- -->
+    <div class="aba-conteudo" id="aba-fichas">
+      <div class="painel-rolagem">
+        {% if 'sheet.create' in minhas_permissoes %}
+          <button class="btn btn-primary btn-block btn-sm" id="nova-ficha"
+                  style="margin-bottom:.8rem">+ Nova ficha</button>
+        {% endif %}
+        <div id="lista-fichas" class="stack" style="gap:.2rem"></div>
+      </div>
+    </div>
+
+    <!-- ---------- MESA ---------- -->
+    <div class="aba-conteudo" id="aba-mesa">
+      <div class="painel-rolagem stack stack-md">
+
+        <section>
+          <h5 class="label" style="margin-bottom:.4rem">Token selecionado</h5>
+          <div class="card card-pad" id="token-selecionado" style="padding:.8rem"></div>
+        </section>
+
+        <section>
+          <h5 class="label" style="margin-bottom:.4rem">Na mesa</h5>
+          <div id="lista-membros" class="stack" style="gap:.1rem"></div>
+        </section>
+
+        {% if 'room.invite' in minhas_permissoes %}
+          <section>
+            <h5 class="label" style="margin-bottom:.4rem">Convidar</h5>
+            <form id="form-convite" class="row" style="gap:.4rem">
+              <input class="input" name="username" placeholder="nome de usuário"
+                     style="font-size:.85rem" autocomplete="off">
+              <button class="btn btn-ghost btn-sm" type="submit">Convidar</button>
+            </form>
+            <p class="hint" style="margin-top:.4rem">
+              O convite chega como mensagem direta para a pessoa.
+            </p>
+          </section>
+        {% endif %}
+
+        <section>
+          <h5 class="label" style="margin-bottom:.4rem">Sistema</h5>
+          <div class="card card-pad" style="padding:.8rem">
+            <strong style="display:block">{{ system.name }}</strong>
+            <p class="small muted" style="margin:.2rem 0 0">{{ system.tagline }}</p>
+            {% if estado.room.system_config %}
+              <hr class="divider" style="margin:.7rem 0">
+              {% for chave, valor in estado.room.system_config.items() %}
+                <div class="row-between small" style="padding:.1rem 0">
+                  <span class="muted">{{ chave.replace('_', ' ') }}</span>
+                  <span>{{ 'sim' if valor is sameas true else ('não' if valor is sameas false else valor) }}</span>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ---------- CENA ---------- -->
+    {% if 'scene.edit' in minhas_permissoes %}
+      <div class="aba-conteudo" id="aba-cena">
+        <div class="painel-rolagem">
+          <form id="form-cena" class="stack stack-md">
+            <div class="field">
+              <label class="label" for="cena-nome">Nome da cena</label>
+              <input class="input" id="cena-nome" name="name" value="{{ estado.scene.name }}" maxlength="64">
+            </div>
+
+            <div class="field">
+              <label class="label" for="cena-fundo">Imagem do mapa</label>
+              <input class="input" id="cena-fundo" type="file" accept="image/*" style="padding:.4rem">
+              <span class="hint">Enviar já aplica na mesa de todo mundo.</span>
+            </div>
+
+            <div class="row" style="gap:.6rem">
+              <div class="field grow">
+                <label class="label" for="cena-grade">Grade</label>
+                <select class="select" id="cena-grade" name="grid_type">
+                  {% for valor, rotulo in [('SQUARE','Quadrada'), ('HEX','Hexagonal'), ('NONE','Sem grade')] %}
+                    <option value="{{ valor }}" {{ 'selected' if estado.scene.grid_type == valor }}>{{ rotulo }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field" style="max-width:110px">
+                <label class="label" for="cena-passo">Célula (px)</label>
+                <input class="input" id="cena-passo" name="grid_size" type="number"
+                       value="{{ estado.scene.grid_size }}" min="16" max="256">
+              </div>
+            </div>
+
+            <div class="row" style="gap:.6rem">
+              <div class="field grow">
+                <label class="label" for="cena-largura">Largura (células)</label>
+                <input class="input" id="cena-largura" name="width" type="number"
+                       value="{{ estado.scene.width }}" min="5" max="200">
+              </div>
+              <div class="field grow">
+                <label class="label" for="cena-altura">Altura (células)</label>
+                <input class="input" id="cena-altura" name="height" type="number"
+                       value="{{ estado.scene.height }}" min="5" max="200">
+              </div>
+            </div>
+
+            <div class="row" style="gap:.6rem">
+              <div class="field grow">
+                <label class="label" for="cena-cor-grade">Cor da grade</label>
+                <input class="input" id="cena-cor-grade" name="grid_color" type="color"
+                       value="{{ estado.scene.grid_color }}" style="height:38px;padding:.2rem">
+              </div>
+              <div class="field grow">
+                <label class="label" for="cena-cor-fundo">Cor de fundo</label>
+                <input class="input" id="cena-cor-fundo" name="background_color" type="color"
+                       value="{{ estado.scene.background_color }}" style="height:38px;padding:.2rem">
+              </div>
+            </div>
+
+            <label class="check">
+              <input type="checkbox" name="grid_visible" {{ 'checked' if estado.scene.grid_visible }}>
+              <span>Mostrar a grade</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" name="snap_to_grid" {{ 'checked' if estado.scene.snap_to_grid }}>
+              <span>Encaixar tokens na grade</span>
+            </label>
+
+            <button class="btn btn-primary btn-block" type="submit">Salvar cena</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </aside>
+</div>
+
+<!-- ==================== MODAL: FICHA ==================== -->
+<div class="modal-backdrop hidden" id="modal-ficha">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="Ficha de personagem">
+    <div class="modal-head">
+      <h3>Ficha</h3>
+      <button class="btn btn-ghost btn-icon" data-modal-close aria-label="Fechar">✕</button>
+    </div>
+    <div class="modal-body" id="ficha-host"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: PERMISSÕES ==================== -->
+<div class="modal-backdrop hidden" id="modal-permissoes">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Permissões do jogador">
+    <div class="modal-head">
+      <h3>Cargo e permissões</h3>
+      <button class="btn btn-ghost btn-icon" data-modal-close aria-label="Fechar">✕</button>
+    </div>
+    <div class="modal-body" id="permissoes-host"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-modal-close>Cancelar</button>
+      <button class="btn btn-primary" id="salvar-permissoes">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.ESTADO_MESA = {{ estado | to_json }};
+  window.ESTADO_MESA.system_quick_rolls = {{ system_def.quick_rolls | to_json }};
+  window.ESTADO_MESA.system_default_roll = {{ system_def.default_roll | tojson }};
+  window.PERMISSIONS = {{ PERMISSIONS | to_json }};
+  window.PERMISSION_GROUPS = {{ PERMISSION_GROUPS | to_json }};
+  window.ROLE_LABELS = {{ {'GM':'Mestre','CO_GM':'Co-mestre','PLAYER':'Jogador','SPECTATOR':'Espectador'} | to_json }};
+</script>
+<script src="/static/js/sheet.js"></script>
+<script src="/static/js/table-map.js"></script>
+<script src="/static/js/table.js"></script>
+{% endblock %}

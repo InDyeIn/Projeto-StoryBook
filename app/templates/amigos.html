@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Amigos — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow" style="padding:2.5rem 0 4rem">
+  <div style="margin-bottom:1.75rem">
+    <p class="eyebrow">Sua rede</p>
+    <h1 style="margin:0">Amigos</h1>
+  </div>
+
+  <!-- ---------- Buscar ---------- -->
+  <section class="card card-pad" style="margin-bottom:1.5rem">
+    <label class="label" for="busca">Procurar pessoas</label>
+    <input class="input" id="busca" placeholder="Nome ou @usuário" autocomplete="off">
+    <div id="resultados" class="stack" style="gap:.2rem;margin-top:.6rem"></div>
+  </section>
+
+  <!-- ---------- Pedidos recebidos ---------- -->
+  {% if amizades.incoming %}
+    <section class="panel" style="margin-bottom:1.25rem">
+      <div class="panel-head">
+        <h4>Pedidos recebidos</h4>
+        <span class="badge badge-warn">{{ amizades.incoming|length }}</span>
+      </div>
+      <div class="panel-body" style="padding:.5rem">
+        {% for pedido in amizades.incoming %}
+          <div class="list-row" data-linha="{{ pedido.id }}">
+            <span class="avatar avatar-sm">
+              {% if pedido.user.avatar_url %}<img src="{{ pedido.user.avatar_url }}" alt="">
+              {% else %}{{ pedido.user.initials }}{% endif %}
+            </span>
+            <a class="grow truncate" href="/u/{{ pedido.user.username }}">{{ pedido.user.display_name }}</a>
+            <button class="btn btn-primary btn-sm" data-aceitar="{{ pedido.id }}">Aceitar</button>
+            <button class="btn btn-ghost btn-sm" data-recusar="{{ pedido.id }}">Recusar</button>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <!-- ---------- Amigos ---------- -->
+  <section class="panel" style="margin-bottom:1.25rem">
+    <div class="panel-head">
+      <h4>Seus amigos</h4>
+      <span class="badge">{{ amizades.friends|length }}</span>
+    </div>
+    <div class="panel-body" style="padding:.5rem">
+      {% if amizades.friends %}
+        {% for amigo in amizades.friends %}
+          <div class="list-row" data-linha="{{ amigo.id }}">
+            <span class="avatar avatar-sm">
+              {% if amigo.user.avatar_url %}<img src="{{ amigo.user.avatar_url }}" alt="">
+              {% else %}{{ amigo.user.initials }}{% endif %}
+            </span>
+            <a class="grow" href="/u/{{ amigo.user.username }}" style="min-width:0">
+              <span class="truncate" style="display:block">{{ amigo.user.display_name }}</span>
+              <span class="small muted">@{{ amigo.user.username }}</span>
+            </a>
+            <span class="presence-dot presence-{{ amigo.user.presence }}"></span>
+            <button class="btn btn-ghost btn-sm" data-conversar="{{ amigo.user.username }}">Mensagem</button>
+            <button class="btn btn-ghost btn-sm" data-remover="{{ amigo.id }}" title="Desfazer amizade">✕</button>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty" style="border:0">
+          <h4>Ninguém por aqui ainda</h4>
+          <p class="small" style="margin:.3rem 0 0">
+            Use a busca acima para encontrar quem já está no {{ app_name }}.
+          </p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ---------- Pedidos enviados ---------- -->
+  {% if amizades.outgoing %}
+    <section class="panel">
+      <div class="panel-head"><h4>Pedidos enviados</h4></div>
+      <div class="panel-body" style="padding:.5rem">
+        {% for pedido in amizades.outgoing %}
+          <div class="list-row" data-linha="{{ pedido.id }}">
+            <span class="avatar avatar-sm">
+              {% if pedido.user.avatar_url %}<img src="{{ pedido.user.avatar_url }}" alt="">
+              {% else %}{{ pedido.user.initials }}{% endif %}
+            </span>
+            <span class="grow truncate">{{ pedido.user.display_name }}</span>
+            <span class="badge">aguardando</span>
+            <button class="btn btn-ghost btn-sm" data-remover="{{ pedido.id }}">Cancelar</button>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const { el } = SB;
+
+  /* ---------- Busca ---------- */
+  const busca = document.getElementById("busca");
+  const resultados = document.getElementById("resultados");
+
+  const procurar = SB.debounce(async () => {
+    const termo = busca.value.trim();
+    if (termo.length < 2) { resultados.innerHTML = ""; return; }
+
+    await SB.run(async () => {
+      const dados = await SB.api(`/api/usuarios/busca?q=${encodeURIComponent(termo)}`);
+      resultados.innerHTML = "";
+
+      if (!dados.users.length) {
+        resultados.append(el("p", { class: "small muted", style: { padding: ".5rem" } },
+          "Ninguém encontrado com esse nome."));
+        return;
+      }
+
+      for (const pessoa of dados.users) {
+        resultados.append(el("div", { class: "list-row" },
+          SB.avatar(pessoa, "sm"),
+          el("a", { class: "grow truncate", href: `/u/${pessoa.username}` }, pessoa.display_name),
+          el("span", { class: "small muted" }, `@${pessoa.username}`),
+          el("button", {
+            class: "btn btn-ghost btn-sm",
+            onClick: (evento) => adicionar(pessoa.username, evento.currentTarget),
+          }, "+ Adicionar")));
+      }
+    });
+  }, 320);
+
+  busca.addEventListener("input", procurar);
+
+  async function adicionar(username, botao) {
+    await SB.run(async () => {
+      const resposta = await SB.api("/api/amigos", { method: "POST", body: { username } });
+      botao.outerHTML = `<span class="badge">${resposta.auto_accepted ? "amigos" : "enviado"}</span>`;
+      SB.toast(resposta.auto_accepted ? "Vocês agora são amigos." : "Pedido enviado.", "ok");
+    });
+  }
+
+  /* ---------- Ações nas listas ---------- */
+  document.addEventListener("click", async (evento) => {
+    const aceitar = evento.target.closest("[data-aceitar]");
+    const remover = evento.target.closest("[data-remover]");
+    const conversar = evento.target.closest("[data-conversar]");
+
+    if (aceitar) {
+      await SB.run(async () => {
+        await SB.api(`/api/amigos/${aceitar.dataset.aceitar}/aceitar`, { method: "POST" });
+        window.location.reload();
+      });
+    } else if (remover) {
+      const id = remover.dataset.remover;
+      if (!confirm("Tem certeza?")) return;
+      await SB.run(async () => {
+        await SB.api(`/api/amigos/${id}`, { method: "DELETE" });
+        document.querySelector(`[data-linha="${id}"]`)?.remove();
+      });
+    } else if (conversar) {
+      await SB.run(async () => {
+        const conversa = await SB.api(
+          `/api/conversas?username=${encodeURIComponent(conversar.dataset.conversar)}`,
+          { method: "POST" });
+        window.location.href = conversa.redirect;
+      });
+    }
+  });
+
+  document.querySelectorAll("[data-recusar]").forEach((botao) => {
+    botao.dataset.remover = botao.dataset.recusar;
+  });
+</script>
+{% endblock %}

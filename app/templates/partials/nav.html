@@ -1,0 +1,41 @@
+<nav class="nav">
+  <a class="brand" href="{{ '/painel' if user else '/' }}">
+    <span class="brand-mark">SB</span>
+    <span>{{ app_name }}</span>
+  </a>
+
+  {% if user %}
+    <div class="nav-links">
+      <a class="nav-link {{ 'is-active' if active == 'painel' }}" href="/painel">Painel</a>
+      <a class="nav-link {{ 'is-active' if active == 'mensagens' }}" href="/mensagens">
+        Mensagens
+        <span class="nav-badge hidden" data-unread-badge></span>
+      </a>
+      <a class="nav-link {{ 'is-active' if active == 'amigos' }}" href="/amigos">
+        Amigos
+        <span class="nav-badge hidden" data-friend-badge></span>
+      </a>
+    </div>
+
+    <span class="spacer"></span>
+
+    <div class="row" style="gap:.5rem">
+      <a class="row" href="/u/{{ user.username }}" style="gap:.5rem;color:inherit">
+        <span class="avatar avatar-sm">
+          {% if user.avatar_url %}<img src="{{ user.avatar_url }}" alt="">{% else %}{{ user.initials }}{% endif %}
+        </span>
+        <span class="small truncate" style="max-width:120px">{{ user.display_name }}</span>
+      </a>
+      <form method="post" action="/sair">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-ghost btn-sm" type="submit">Sair</button>
+      </form>
+    </div>
+  {% else %}
+    <span class="spacer"></span>
+    <div class="row" style="gap:.5rem">
+      <a class="btn btn-ghost btn-sm" href="/entrar">Entrar</a>
+      <a class="btn btn-primary btn-sm" href="/cadastro">Criar conta</a>
+    </div>
+  {% endif %}
+</nav>

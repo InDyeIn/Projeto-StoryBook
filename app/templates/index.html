@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}{{ app_name }} — a sua mesa, em qualquer órbita{% endblock %}
+
+{% block head %}
+<style>
+  .hero { padding: clamp(3.5rem, 11vw, 8rem) 0 clamp(3rem, 8vw, 6rem); }
+  .hero-grid {
+    display: grid;
+    gap: clamp(2.5rem, 6vw, 5rem);
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: center;
+  }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+
+  .hero h1 { margin-bottom: .35em; }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(120deg, var(--accent-soft), var(--cyan) 55%, var(--pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero-lead { font-size: clamp(1rem, 2vw, 1.15rem); color: var(--ink-soft); max-width: 52ch; }
+
+  /* Livro aberto flutuando no espaço */
+  .book {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--r-xl);
+    background:
+      radial-gradient(600px 300px at 50% 0%, rgba(124,92,255,.22), transparent 70%),
+      linear-gradient(180deg, var(--surface), var(--void));
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  .book::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(124,92,255,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,92,255,.07) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: radial-gradient(circle at 50% 55%, #000 35%, transparent 75%);
+  }
+  .book-pages {
+    position: relative;
+    display: flex;
+    gap: 3px;
+    width: 72%;
+    aspect-ratio: 3 / 2;
+    transform: perspective(900px) rotateX(16deg);
+    filter: drop-shadow(0 26px 40px rgba(0,0,0,.65));
+  }
+  .page {
+    flex: 1;
+    border-radius: 4px;
+    background: linear-gradient(170deg, #1b2440, #10162a);
+    border: 1px solid var(--line);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .page-line { height: 5px; border-radius: 3px; background: var(--line); }
+  .page-line.w80 { width: 80%; } .page-line.w60 { width: 60%; } .page-line.w95 { width: 95%; }
+  .page-line.accent { background: linear-gradient(90deg, var(--accent), transparent); }
+
+  .token-float {
+    position: absolute;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: .7rem; font-weight: 700; color: #fff;
+    border: 2px solid rgba(255,255,255,.25);
+    animation: bob 7s ease-in-out infinite;
+  }
+  .token-float.a { top: 16%; left: 12%; background: linear-gradient(140deg, var(--accent), #5a3fd6); }
+  .token-float.b { top: 62%; right: 13%; background: linear-gradient(140deg, var(--cyan), #2ba6ab); animation-delay: -2.3s; }
+  .token-float.c { bottom: 13%; left: 24%; background: linear-gradient(140deg, var(--pink), #d64277); animation-delay: -4.6s; }
+  @keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-13px) } }
+
+  .feature { padding: 1.4rem; }
+  .feature-icon {
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border-radius: 11px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,92,255,.28);
+    font-size: 1.2rem;
+    margin-bottom: .9rem;
+  }
+  .feature h3 { font-size: 1.02rem; margin-bottom: .35em; }
+  .feature p { font-size: .9rem; color: var(--ink-mute); margin: 0; line-height: 1.6; }
+
+  .system-card { padding: 1.5rem; display: flex; flex-direction: column; gap: .8rem; }
+  .system-bar { height: 3px; border-radius: 999px; }
+
+  .cta {
+    position: relative;
+    padding: clamp(2.5rem, 7vw, 4.5rem) clamp(1.5rem, 5vw, 4rem);
+    border-radius: var(--r-xl);
+    text-align: center;
+    overflow: hidden;
+    background: linear-gradient(140deg, rgba(124,92,255,.16), rgba(255,107,157,.1)), var(--surface);
+    border: 1px solid var(--line);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">Mesa virtual · Rede social · Código aberto</p>
+      <h1>A sua mesa de RPG,<br><em>em qualquer órbita</em></h1>
+      <p class="hero-lead">
+        {{ app_name }} reúne tabletop, fichas e convívio no mesmo lugar. Crie a sala,
+        chame a galera pelo chat e comece a sessão — sem instalar nada, sem perder
+        a ficha de ninguém.
+      </p>
+      <div class="row row-wrap" style="margin-top:2rem;gap:.75rem">
+        <a class="btn btn-primary btn-lg" href="/cadastro">Criar minha conta</a>
+        <a class="btn btn-ghost btn-lg" href="/entrar">Já tenho conta</a>
+      </div>
+      <p class="small muted" style="margin-top:1.2rem">
+        Grátis para rodar na sua própria máquina ou VPS.
+      </p>
+    </div>
+
+    <div class="book" aria-hidden="true">
+      <div class="book-pages">
+        <div class="page">
+          <div class="page-line accent w80"></div>
+          <div class="page-line w95"></div>
+          <div class="page-line w60"></div>
+          <div class="page-line w95"></div>
+          <div class="page-line w80"></div>
+        </div>
+        <div class="page">
+          <div class="page-line accent w60"></div>
+          <div class="page-line w80"></div>
+          <div class="page-line w95"></div>
+          <div class="page-line w60"></div>
+          <div class="page-line w80"></div>
+        </div>
+      </div>
+      <div class="token-float a">GM</div>
+      <div class="token-float b">P1</div>
+      <div class="token-float c">P2</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ RECURSOS ============ -->
+<section class="section" id="recursos">
+  <div class="wrap">
+    <div style="max-width:60ch;margin-bottom:2.5rem">
+      <p class="eyebrow">O que tem dentro</p>
+      <h2>Tudo que a mesa precisa, num lugar só</h2>
+      <p class="soft">
+        Sem alternar entre cinco abas para jogar uma sessão.
+      </p>
+    </div>
+
+    <div class="grid grid-auto">
+      {% set recursos = [
+        ("🗺️", "Tabletop de verdade", "Mapa com grade quadrada ou hexagonal, tokens arrastáveis, camada exclusiva do mestre e cenas que você troca em um clique."),
+        ("📋", "Fichas que se adaptam", "A ficha nasce da definição do sistema, não de um formulário fixo. Trocou de sistema, trocou a ficha inteira."),
+        ("🎲", "Dados com notação completa", "2d6+3, 4d6kh3, pools contando sucessos e dados explosivos — tudo direto no chat da mesa."),
+        ("🔐", "Permissão por jogador", "Dezoito permissões granuladas. Solte o mapa para um, tranque os tokens de outro, sem cargos engessados."),
+        ("💬", "Chat e convites", "Converse por mensagem direta e convide para a mesa sem sair do site. O convite chega no chat."),
+        ("🪐", "Perfil customizável", "Foto, banner, cor de destaque, descrição e blocos de vitrine — do jeito que você montaria no Steam."),
+      ] %}
+      {% for icone, titulo, texto in recursos %}
+        <article class="card feature">
+          <div class="feature-icon">{{ icone }}</div>
+          <h3>{{ titulo }}</h3>
+          <p>{{ texto }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ============ SISTEMAS ============ -->
+<section class="section" style="padding-top:0">
+  <div class="wrap">
+    <div style="max-width:60ch;margin-bottom:2rem">
+      <p class="eyebrow">Sistemas</p>
+      <h2>Comece por estes</h2>
+      <p class="soft">Cada sistema é um arquivo de definição — adicionar o próximo não mexe em nenhuma tela.</p>
+    </div>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+      {% for sistema in list_systems() %}
+        <article class="card system-card">
+          <div class="system-bar" style="background:linear-gradient(90deg,{{ sistema.color }},transparent)"></div>
+          <div class="row-between">
+            <h3 style="margin:0">{{ sistema.name }}</h3>
+            {% if sistema.status == "draft" %}
+              <span class="badge badge-warn">rascunho</span>
+            {% endif %}
+          </div>
+          {% if sistema.publisher %}
+            <p class="small muted" style="margin:-.5rem 0 0">{{ sistema.publisher }}</p>
+          {% endif %}
+          <p class="small soft" style="margin:0">{{ sistema.description }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHAMADA FINAL ============ -->
+<section class="section" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta">
+      <p class="eyebrow">Pronto para a primeira sessão</p>
+      <h2 style="margin-bottom:.5em">Abra a sala e chame a mesa</h2>
+      <p class="soft" style="max-width:48ch;margin-inline:auto">
+        Leva menos de um minuto: cria a conta, escolhe o sistema, manda o código de convite.
+      </p>
+      <div class="row" style="justify-content:center;margin-top:1.8rem">
+        <a class="btn btn-primary btn-lg" href="/cadastro">Criar conta grátis</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer style="padding:2.5rem 0;border-top:1px solid var(--line-soft)">
+  <div class="wrap row-between row-wrap">
+    <div class="row" style="gap:.6rem">
+      <span class="brand-mark">SB</span>
+      <span class="small muted">{{ app_name }} — mesa virtual para RPG</span>
+    </div>
+    <span class="small muted">Feito para rodar na sua máquina.</span>
+  </div>
+</footer>
+{% endblock %}

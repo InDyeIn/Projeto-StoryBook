@@ -1,0 +1,320 @@
+/* =========================================================================
+   Mesa (tabletop): mapa à esquerda, painel lateral à direita.
+   ========================================================================= */
+
+body.mesa-page { overflow: hidden; }
+
+.mesa {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  height: calc(100vh - var(--nav-h));
+}
+@media (max-width: 980px) {
+  .mesa { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .mesa-lateral { max-height: 45vh; }
+}
+
+/* --- Área do mapa ----------------------------------------------------- */
+.mesa-palco { position: relative; overflow: hidden; background: var(--void); }
+
+.mapa-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.mapa-viewport.is-panning { cursor: grabbing; }
+
+.mapa-mundo {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.mapa-fundo {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.mapa-grade { position: absolute; inset: 0; pointer-events: none; }
+
+/* --- Tokens ----------------------------------------------------------- */
+.token {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--cor, var(--accent));
+  background: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, .8);
+  transition: box-shadow .15s, outline-color .15s;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.token:hover { box-shadow: 0 6px 20px -4px rgba(0, 0, 0, .9); }
+.token.is-selected { outline-color: var(--cyan); }
+.token.is-dragging { cursor: grabbing; opacity: .82; z-index: 60; }
+.token.is-locked { cursor: default; }
+.token.is-hidden { opacity: .45; border-style: dashed; }
+.token.camada-GM_ONLY { border-color: var(--amber); }
+
+.token-iniciais {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .9);
+  pointer-events: none;
+  font-size: clamp(10px, 2.4vw, 15px);
+}
+
+.token-nome {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(7, 10, 20, .88);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.token-barras {
+  position: absolute;
+  top: calc(100% + 20px);
+  left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+.token-barra { height: 4px; border-radius: 999px; background: rgba(0, 0, 0, .65); overflow: hidden; }
+.token-barra > span { display: block; height: 100%; border-radius: 999px; }
+
+.token-estados {
+  position: absolute;
+  top: -6px; right: -6px;
+  display: flex; gap: 2px;
+  pointer-events: none;
+}
+.token-estado {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 2px solid var(--void);
+  font-size: 9px;
+  display: grid; place-items: center;
+  color: #000; font-weight: 700;
+}
+
+/* Ponteiro dos outros jogadores */
+.cursor-remoto {
+  position: absolute;
+  z-index: 80;
+  pointer-events: none;
+  transform: translate(-2px, -2px);
+  transition: left .09s linear, top .09s linear;
+}
+.cursor-remoto span {
+  display: block;
+  margin-left: 12px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+/* --- Barra de ferramentas do mapa ------------------------------------- */
+.mapa-ferramentas {
+  position: absolute;
+  top: .85rem; left: .85rem;
+  z-index: 30;
+  display: flex;
+  gap: .3rem;
+  padding: .3rem;
+  border-radius: var(--r);
+  background: rgba(11, 15, 30, .9);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+.mapa-zoom {
+  position: absolute;
+  bottom: .85rem; left: .85rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .3rem .5rem;
+  border-radius: var(--r);
+  background: rgba(11, 15, 30, .9);
+  border: 1px solid var(--line);
+  font-size: .78rem;
+  color: var(--ink-mute);
+  backdrop-filter: blur(10px);
+}
+
+.mapa-cenas {
+  position: absolute;
+  top: .85rem; right: .85rem;
+  z-index: 30;
+  display: flex;
+  gap: .3rem;
+  align-items: center;
+  padding: .3rem;
+  border-radius: var(--r);
+  background: rgba(11, 15, 30, .9);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  max-width: 55%;
+}
+
+.aviso-conexao {
+  position: absolute;
+  bottom: .85rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: .4rem .9rem;
+  border-radius: 999px;
+  background: rgba(255, 196, 107, .16);
+  border: 1px solid rgba(255, 196, 107, .4);
+  color: var(--amber);
+  font-size: .8rem;
+}
+
+/* --- Painel lateral --------------------------------------------------- */
+.mesa-lateral {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--line-soft);
+  background: var(--deep);
+}
+.mesa-lateral > .tabs { margin: .6rem; flex: 0 0 auto; }
+
+.aba-conteudo { display: none; flex: 1; min-height: 0; flex-direction: column; }
+.aba-conteudo.is-active { display: flex; }
+
+.painel-rolagem { flex: 1; overflow-y: auto; padding: .75rem; }
+
+/* --- Chat ------------------------------------------------------------- */
+.chat-lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+  scroll-behavior: smooth;
+}
+
+.msg { display: flex; gap: .55rem; font-size: .88rem; }
+.msg-corpo { min-width: 0; flex: 1; }
+.msg-topo { display: flex; align-items: baseline; gap: .4rem; margin-bottom: .1rem; }
+.msg-autor { font-weight: 600; font-size: .84rem; }
+.msg-hora { font-size: .7rem; color: var(--ink-faint); }
+.msg-texto { color: var(--ink-soft); word-wrap: break-word; white-space: pre-wrap; }
+
+.msg-sistema {
+  text-align: center;
+  font-size: .78rem;
+  color: var(--ink-faint);
+  padding: .2rem 0;
+  font-style: italic;
+}
+.msg-ooc .msg-texto { color: var(--ink-mute); font-style: italic; }
+.msg-sussurro {
+  border-left: 2px solid var(--pink);
+  padding-left: .5rem;
+  background: rgba(255, 107, 157, .05);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+.rolagem {
+  margin-top: .3rem;
+  padding: .6rem .75rem;
+  border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(124, 92, 255, .12), rgba(92, 225, 230, .06));
+  border: 1px solid rgba(124, 92, 255, .28);
+}
+.rolagem-topo { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.rolagem-formula { font-family: var(--font-mono); font-size: .75rem; color: var(--ink-mute); }
+.rolagem-total { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.rolagem-rotulo { font-size: .8rem; color: var(--accent-soft); font-weight: 600; }
+.rolagem-dados { display: flex; flex-wrap: wrap; gap: 3px; margin-top: .45rem; }
+
+.face {
+  min-width: 22px; height: 22px;
+  padding: 0 4px;
+  display: grid; place-items: center;
+  border-radius: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--ink-soft);
+}
+.face.is-sucesso { background: rgba(93, 219, 164, .18); border-color: var(--green); color: #b6f0d6; font-weight: 700; }
+.face.is-descartada { opacity: .38; text-decoration: line-through; }
+.face.is-explodida { border-color: var(--amber); color: var(--amber); }
+
+.chat-entrada {
+  flex: 0 0 auto;
+  padding: .6rem;
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+.chat-entrada textarea {
+  width: 100%;
+  min-height: 46px;
+  max-height: 140px;
+  resize: none;
+  padding: .55rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--deep);
+  color: var(--ink);
+  font: inherit;
+  font-size: .9rem;
+}
+.chat-entrada textarea:focus { outline: none; border-color: var(--accent); }
+.chat-dicas { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem; }
+
+.digitando { font-size: .74rem; color: var(--ink-faint); padding: 0 .75rem .3rem; min-height: 1.1em; }
+
+/* --- Listas do painel ------------------------------------------------- */
+.item-membro {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .5rem .6rem; border-radius: var(--r);
+}
+.item-membro:hover { background: var(--surface-2); }
+
+.perm-grupo { margin-bottom: 1rem; }
+.perm-grupo h5 {
+  margin: 0 0 .4rem; font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-mute);
+}
+.perm-linha {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .6rem; padding: .35rem .5rem; border-radius: var(--r-sm); font-size: .84rem;
+}
+.perm-linha:hover { background: var(--surface-2); }
+.perm-linha.is-padrao .perm-nome { color: var(--ink-mute); }

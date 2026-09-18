@@ -1,0 +1,46 @@
+{% extends "auth/_shell.html" %}
+{% block title %}Criar conta — {{ app_name }}{% endblock %}
+
+{% block form %}
+  <p class="eyebrow">Primeira missão</p>
+  <h1>Criar conta</h1>
+  <p class="muted small" style="margin-bottom:1.6rem">
+    Leva menos de um minuto e já dá para abrir a primeira mesa.
+  </p>
+
+  <form method="post" action="/api/cadastro" data-api data-loading="Criando…"
+        data-redirect="/painel" class="stack stack-md">
+    <div class="alert alert-error hidden" data-error></div>
+
+    <div class="field">
+      <label class="label" for="display_name">Como quer ser chamado</label>
+      <input class="input" id="display_name" name="display_name" required autofocus
+             maxlength="48" placeholder="Agente Vieira">
+    </div>
+
+    <div class="field">
+      <label class="label" for="username">Nome de usuário</label>
+      <input class="input" id="username" name="username" required
+             pattern="[a-z0-9_]{3,24}" maxlength="24" placeholder="agente_vieira">
+      <span class="hint">Letras minúsculas, números e _ — aparece no endereço do seu perfil.</span>
+    </div>
+
+    <div class="field">
+      <label class="label" for="email">E-mail</label>
+      <input class="input" id="email" name="email" type="email" required
+             autocomplete="email" placeholder="voce@exemplo.com">
+    </div>
+
+    <div class="field">
+      <label class="label" for="password">Senha</label>
+      <input class="input" id="password" name="password" type="password" required
+             minlength="8" autocomplete="new-password" placeholder="mínimo de 8 caracteres">
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg" type="submit">Criar minha conta</button>
+  </form>
+
+  <p class="auth-foot">
+    Já tem conta? <a href="/entrar">Entrar</a>
+  </p>
+{% endblock %}

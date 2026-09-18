@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% block title %}Painel — {{ app_name }}{% endblock %}
+
+{% block head %}
+<style>
+  .painel { padding: 2.5rem 0 4rem; }
+  .painel-grid {
+    display: grid;
+    gap: 1.75rem;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .painel-grid { grid-template-columns: 1fr; } }
+
+  .sala-card { overflow: hidden; display: flex; flex-direction: column; }
+  .sala-capa {
+    height: 96px;
+    position: relative;
+    background-size: cover;
+    background-position: center;
+  }
+  .sala-capa::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, var(--surface));
+  }
+  .sala-corpo { padding: 1rem 1.15rem 1.15rem; display: flex; flex-direction: column; gap: .55rem; flex: 1; }
+  .sala-meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .78rem; color: var(--ink-mute); }
+
+  .ficha-linha {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .55rem .65rem; border-radius: var(--r);
+    color: inherit;
+  }
+  .ficha-linha:hover { background: var(--surface-2); text-decoration: none; }
+
+  .opcao-sistema {
+    display: block; cursor: pointer;
+    padding: .9rem 1rem; border-radius: var(--r);
+    border: 1px solid var(--line); background: var(--deep);
+    transition: all .15s;
+  }
+  .opcao-sistema:hover { border-color: var(--accent-soft); }
+  .opcao-sistema input { position: absolute; opacity: 0; }
+  .opcao-sistema:has(input:checked) { border-color: var(--accent); background: var(--accent-dim); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap painel">
+
+  <div class="row-between row-wrap" style="margin-bottom:2rem">
+    <div>
+      <p class="eyebrow">Painel de controle</p>
+      <h1 style="margin-bottom:.15em">Olá, {{ user.display_name }}</h1>
+      <p class="muted" style="margin:0">
+        {% if salas %}
+          Você participa de {{ salas|length }} mesa{{ 's' if salas|length != 1 }}.
+        {% else %}
+          Nenhuma mesa ainda — que tal abrir a primeira?
+        {% endif %}
+      </p>
+    </div>
+    <div class="row row-wrap" style="gap:.6rem">
+      <button class="btn btn-ghost" data-modal-open="modal-entrar">Entrar com código</button>
+      <button class="btn btn-primary" data-modal-open="modal-sala">Criar mesa</button>
+    </div>
+  </div>
+
+  <div class="painel-grid">
+    <!-- ============ MESAS ============ -->
+    <section>
+      <h2 style="font-size:1.25rem;margin-bottom:1rem">Suas mesas</h2>
+
+      {% if salas %}
+        <div class="grid grid-auto">
+          {% for sala in salas %}
+            <a class="card card-link sala-card" href="/mesa/{{ sala.slug }}">
+              <div class="sala-capa" style="
+                {% if sala.banner_url %}background-image:url('{{ sala.banner_url }}');
+                {% else %}background:linear-gradient(135deg,{{ sala.system_color }}44,transparent 70%),var(--surface-2);{% endif %}">
+              </div>
+              <div class="sala-corpo">
+                <div class="row-between" style="gap:.5rem">
+                  <h3 style="margin:0;font-size:1.05rem" class="truncate">{{ sala.name }}</h3>
+                  <span class="badge {{ 'badge-accent' if sala.role in ['GM','CO_GM'] }}">
+                    {{ ROLE_LABELS[sala.role] if sala.role in ROLE_LABELS else sala.role }}
+                  </span>
+                </div>
+
+                {% if sala.description %}
+                  <p class="small muted truncate" style="margin:0">{{ sala.description }}</p>
+                {% endif %}
+
+                <div class="spacer"></div>
+                <div class="sala-meta">
+                  <span style="color:{{ sala.system_color }}">● {{ sala.system_name }}</span>
+                  <span>·</span>
+                  <span>{{ sala.members }}/{{ sala.max_players + 1 }} na mesa</span>
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">
+          <h4>Sua estante está vazia</h4>
+          <p class="small" style="margin:.4rem 0 1.2rem">
+            Crie uma mesa como mestre ou entre na mesa de alguém com um código de convite.
+          </p>
+          <div class="row" style="justify-content:center;gap:.6rem">
+            <button class="btn btn-primary" data-modal-open="modal-sala">Criar mesa</button>
+            <button class="btn btn-ghost" data-modal-open="modal-entrar">Tenho um código</button>
+          </div>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- ============ LATERAL ============ -->
+    <aside class="stack stack-md">
+      <div class="panel">
+        <div class="panel-head">
+          <h4>Suas fichas</h4>
+          <span class="badge">{{ fichas|length }}</span>
+        </div>
+        <div class="panel-body" style="padding:.5rem">
+          {% if fichas %}
+            {% for ficha in fichas %}
+              <a class="ficha-linha" href="/ficha/{{ ficha.id }}">
+                <span class="avatar avatar-sm">
+                  {% if ficha.avatar_url %}<img src="{{ ficha.avatar_url }}" alt="">
+                  {% else %}{{ ficha.name[0]|upper }}{% endif %}
+                </span>
+                <span class="grow" style="min-width:0">
+                  <span class="truncate" style="display:block;font-size:.9rem">{{ ficha.name }}</span>
+                  <span class="small muted">{{ get_system(ficha.system_id).short_name }}</span>
+                </span>
+              </a>
+            {% endfor %}
+          {% else %}
+            <p class="small muted" style="padding:1rem;text-align:center;margin:0">
+              Nenhuma ficha ainda. Elas nascem dentro da mesa.
+            </p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h4>Amigos</h4>
+          <a class="small" href="/amigos">ver todos</a>
+        </div>
+        <div class="panel-body" style="padding:.5rem">
+          {% if amizades.incoming %}
+            <p class="small" style="padding:.4rem .65rem;color:var(--amber);margin:0 0 .3rem">
+              {{ amizades.incoming|length }} pedido(s) esperando resposta
+            </p>
+          {% endif %}
+
+          {% if amizades.friends %}
+            {% for amizade in amizades.friends[:6] %}
+              <a class="ficha-linha" href="/u/{{ amizade.user.username }}">
+                <span class="avatar avatar-sm">
+                  {% if amizade.user.avatar_url %}<img src="{{ amizade.user.avatar_url }}" alt="">
+                  {% else %}{{ amizade.user.initials }}{% endif %}
+                </span>
+                <span class="grow truncate" style="font-size:.9rem">{{ amizade.user.display_name }}</span>
+                <span class="presence-dot presence-{{ amizade.user.presence }}"></span>
+              </a>
+            {% endfor %}
+          {% else %}
+            <p class="small muted" style="padding:1rem;text-align:center;margin:0">
+              Adicione amigos para convidá-los direto pelo chat.
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ MODAL: CRIAR MESA ============ -->
+<div class="modal-backdrop hidden" id="modal-sala">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="titulo-sala">
+    <div class="modal-head">
+      <h3 id="titulo-sala">Nova mesa</h3>
+      <button class="btn btn-ghost btn-icon" data-modal-close aria-label="Fechar">✕</button>
+    </div>
+
+    <form method="post" action="/api/salas" data-api data-loading="Abrindo a mesa…"
+          id="form-sala" class="stack">
+      <div class="modal-body stack stack-md">
+        <div class="alert alert-error hidden" data-error></div>
+
+        <div class="field">
+          <label class="label" for="sala-nome">Nome da mesa</label>
+          <input class="input" id="sala-nome" name="name" required minlength="3" maxlength="64"
+                 placeholder="Os Arquivos Inconvenientes">
+        </div>
+
+        <div class="field">
+          <label class="label" for="sala-desc">Descrição</label>
+          <textarea class="textarea" id="sala-desc" name="description" maxlength="2000"
+                    placeholder="Do que se trata a campanha? Quando vocês jogam?"></textarea>
+        </div>
+
+        <div class="field">
+          <span class="label">Sistema</span>
+          <div class="stack stack-sm" id="seletor-sistema">
+            {% for sistema in sistemas %}
+              <label class="opcao-sistema">
+                <input type="radio" name="system_id" value="{{ sistema.id }}"
+                       {{ 'checked' if loop.first }}>
+                <span class="row-between" style="gap:.75rem">
+                  <span style="min-width:0">
+                    <strong style="display:block">{{ sistema.name }}</strong>
+                    <span class="small muted">{{ sistema.tagline }}</span>
+                  </span>
+                  {% if sistema.status == 'draft' %}
+                    <span class="badge badge-warn nowrap">rascunho</span>
+                  {% endif %}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Opções específicas do sistema, montadas pelo JS -->
+        <div class="field hidden" id="opcoes-sistema">
+          <span class="label">Opções do sistema</span>
+          <div class="stack stack-sm" id="opcoes-lista"></div>
+        </div>
+
+        <div class="row" style="gap:1rem;align-items:flex-end">
+          <div class="field" style="max-width:140px">
+            <label class="label" for="sala-max">Vagas</label>
+            <input class="input" id="sala-max" name="max_players" type="number"
+                   value="6" min="1" max="32">
+          </div>
+          <label class="check" style="padding-bottom:.6rem">
+            <input type="checkbox" name="is_public">
+            <span>Mesa pública <span class="muted small">(aparece no perfil)</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn btn-ghost" type="button" data-modal-close>Cancelar</button>
+        <button class="btn btn-primary" type="submit">Abrir mesa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: ENTRAR COM CÓDIGO ============ -->
+<div class="modal-backdrop hidden" id="modal-entrar">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-entrar">
+    <div class="modal-head">
+      <h3 id="titulo-entrar">Entrar em uma mesa</h3>
+      <button class="btn btn-ghost btn-icon" data-modal-close aria-label="Fechar">✕</button>
+    </div>
+    <form method="post" action="/api/salas/entrar" data-api data-loading="Procurando…">
+      <div class="modal-body stack stack-md">
+        <div class="alert alert-error hidden" data-error></div>
+        <div class="field">
+          <label class="label" for="codigo">Código do convite</label>
+          <input class="input mono" id="codigo" name="invite_code" required
+                 maxlength="12" placeholder="XK4P9TZ2"
+                 style="text-transform:uppercase;letter-spacing:.2em;font-size:1.1rem">
+          <span class="hint">O mestre encontra esse código no painel lateral da mesa.</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" type="button" data-modal-close>Cancelar</button>
+        <button class="btn btn-primary" type="submit">Entrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const SISTEMAS = {{ sistemas | to_json }};
+
+  /* Ao trocar de sistema, redesenha as opções que o mestre pode configurar.
+     Elas vêm da definição do sistema — nenhuma opção está fixa no HTML. */
+  function montarOpcoes() {
+    const escolhido = document.querySelector('input[name="system_id"]:checked');
+    const caixa = document.getElementById("opcoes-sistema");
+    const lista = document.getElementById("opcoes-lista");
+    lista.innerHTML = "";
+
+    const sistema = SISTEMAS.find((s) => s.id === escolhido?.value);
+    const opcoes = sistema?.room_options || [];
+    caixa.classList.toggle("hidden", opcoes.length === 0);
+
+    for (const opcao of opcoes) {
+      const nome = `cfg__${opcao.key}`;
+      let campo;
+
+      if (opcao.type === "boolean") {
+        campo = SB.el("label", { class: "check" },
+          SB.el("input", { type: "checkbox", name: nome, ...(opcao.default ? { checked: "checked" } : {}) }),
+          SB.el("span", {}, opcao.label));
+      } else if (opcao.type === "select") {
+        const select = SB.el("select", { class: "select", name: nome });
+        for (const o of opcao.options || []) {
+          const item = SB.el("option", { value: o.value }, o.label);
+          if (String(o.value) === String(opcao.default)) item.selected = true;
+          select.append(item);
+        }
+        campo = SB.el("div", { class: "field" }, SB.el("span", { class: "label" }, opcao.label), select);
+      } else {
+        campo = SB.el("div", { class: "field" },
+          SB.el("span", { class: "label" }, opcao.label),
+          SB.el("input", {
+            class: "input", name: nome,
+            type: opcao.type === "number" ? "number" : "text",
+            value: opcao.default ?? "",
+          }));
+      }
+
+      if (opcao.hint) {
+        campo = SB.el("div", { class: "stack", style: { gap: ".2rem" } },
+          campo, SB.el("span", { class: "hint" }, opcao.hint));
+      }
+      lista.append(campo);
+    }
+  }
+
+  document.getElementById("seletor-sistema").addEventListener("change", montarOpcoes);
+  montarOpcoes();
+
+  /* O formulário padrão manda campos planos; aqui separamos os "cfg__" para
+     dentro de system_config, que é o formato que a API espera. */
+  document.getElementById("form-sala").addEventListener("submit", function (event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const form = event.target;
+    const botao = form.querySelector('[type="submit"]');
+    const erro = form.querySelector("[data-error]");
+    erro.classList.add("hidden");
+
+    const corpo = { system_config: {} };
+    new FormData(form).forEach((valor, chave) => {
+      if (chave === "csrf_token") return;
+      if (chave.startsWith("cfg__")) corpo.system_config[chave.slice(5)] = valor;
+      else corpo[chave] = valor;
+    });
+
+    form.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      if (input.name.startsWith("cfg__")) corpo.system_config[input.name.slice(5)] = input.checked;
+      else if (input.name) corpo[input.name] = input.checked;
+    });
+    corpo.max_players = Number(corpo.max_players || 6);
+
+    botao.disabled = true;
+    botao.textContent = "Abrindo a mesa…";
+
+    SB.api("/api/salas", { method: "POST", body: corpo })
+      .then((resultado) => { window.location.href = resultado.redirect; })
+      .catch((falha) => {
+        erro.textContent = falha.message;
+        erro.classList.remove("hidden");
+        botao.disabled = false;
+        botao.textContent = "Abrir mesa";
+      });
+  }, true);
+</script>
+{% endblock %}

@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}{{ perfil.display_name }} (@{{ perfil.username }}) — {{ app_name }}{% endblock %}
+{% block description %}{{ perfil.tagline or (perfil.display_name ~ ' no ' ~ app_name) }}{% endblock %}
+
+{% block head %}
+<style>
+  .perfil { --cor: {{ perfil.accent_color }}; padding-bottom: 4rem; }
+
+  .perfil-capa {
+    height: clamp(150px, 26vw, 280px);
+    position: relative;
+    background: linear-gradient(135deg, var(--cor) -20%, transparent 65%), var(--surface);
+    background-size: cover; background-position: center;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .perfil-capa::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 40%, var(--void));
+  }
+
+  .perfil-cabecalho {
+    position: relative; z-index: 2;
+    margin-top: -60px;
+    display: flex; gap: 1.4rem; align-items: flex-end; flex-wrap: wrap;
+  }
+  .perfil-foto {
+    width: 128px; height: 128px; flex: 0 0 128px;
+    border-radius: var(--r-lg);
+    border: 3px solid var(--cor);
+    background: var(--surface-2);
+    overflow: hidden;
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-size: 2.6rem; color: var(--ink-soft);
+    box-shadow: var(--shadow-lg);
+  }
+  .perfil-foto img { width: 100%; height: 100%; object-fit: cover; }
+
+  .perfil-nome { font-size: clamp(1.6rem, 4vw, 2.3rem); margin: 0 0 .1em; }
+  .perfil-handle { font-family: var(--font-mono); font-size: .88rem; color: var(--ink-mute); }
+
+  .perfil-grid {
+    display: grid; gap: 1.5rem; margin-top: 2.5rem;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .perfil-grid { grid-template-columns: 1fr; } }
+
+  .bio { white-space: pre-wrap; color: var(--ink-soft); line-height: 1.7; }
+
+  .vitrine-item {
+    display: flex; justify-content: space-between; gap: .75rem;
+    padding: .5rem .7rem; border-radius: var(--r-sm);
+    font-size: .88rem;
+  }
+  .vitrine-item:hover { background: var(--surface-2); }
+  .vitrine-item + .vitrine-item { border-top: 1px solid var(--line-soft); }
+
+  .stat { text-align: center; padding: .8rem .4rem; }
+  .stat-num { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: var(--cor); }
+  .stat-rot { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-mute); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="perfil">
+
+  <div class="perfil-capa"
+       {% if perfil.banner_url %}style="background-image:url('{{ perfil.banner_url }}')"{% endif %}></div>
+
+  <div class="wrap">
+    <header class="perfil-cabecalho">
+      <div class="perfil-foto">
+        {% if perfil.avatar_url %}
+          <img src="{{ perfil.avatar_url }}" alt="Foto de {{ perfil.display_name }}">
+        {% else %}{{ perfil.initials }}{% endif %}
+      </div>
+
+      <div class="grow" style="min-width:0">
+        <h1 class="perfil-nome">{{ perfil.display_name }}</h1>
+        <div class="row row-wrap" style="gap:.6rem">
+          <span class="perfil-handle">@{{ perfil.username }}</span>
+          <span class="presence-dot presence-{{ perfil.presence.value }}"></span>
+          <span class="small muted">
+            {{ 'online' if perfil.presence.value == 'ONLINE' else 'visto ' ~ (perfil.last_seen_at | time_ago) }}
+          </span>
+          {% if perfil.pronouns %}<span class="badge">{{ perfil.pronouns }}</span>{% endif %}
+          {% if perfil.location %}<span class="small muted">📍 {{ perfil.location }}</span>{% endif %}
+        </div>
+        {% if perfil.tagline %}
+          <p class="soft" style="margin:.6rem 0 0;font-size:1.02rem">{{ perfil.tagline }}</p>
+        {% endif %}
+      </div>
+
+      <div class="row row-wrap" style="gap:.5rem">
+        {% if e_meu %}
+          <a class="btn btn-ghost" href="/configuracoes">Editar perfil</a>
+        {% elif user %}
+          {% if relacao == 'friends' %}
+            <span class="badge badge-accent">amigos</span>
+          {% elif relacao == 'outgoing' %}
+            <span class="badge">pedido enviado</span>
+          {% elif relacao == 'incoming' %}
+            <a class="btn btn-primary btn-sm" href="/amigos">Responder pedido</a>
+          {% else %}
+            <button class="btn btn-ghost" id="adicionar-amigo"
+                    data-username="{{ perfil.username }}">+ Adicionar</button>
+          {% endif %}
+          <button class="btn btn-primary" id="mandar-mensagem"
+                  data-username="{{ perfil.username }}">Mensagem</button>
+        {% else %}
+          <a class="btn btn-primary" href="/entrar">Entrar para interagir</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="perfil-grid">
+      <!-- ============ COLUNA PRINCIPAL ============ -->
+      <div class="stack stack-md">
+        <section class="panel">
+          <div class="panel-head"><h4>Sobre</h4></div>
+          <div class="panel-body">
+            {% if perfil.bio %}
+              <div class="bio">{{ perfil.bio }}</div>
+            {% else %}
+              <p class="muted small" style="margin:0">
+                {% if e_meu %}
+                  Você ainda não escreveu nada. <a href="/configuracoes">Conte quem você é.</a>
+                {% else %}
+                  Este agente prefere não constar nos arquivos.
+                {% endif %}
+              </p>
+            {% endif %}
+          </div>
+        </section>
+
+        {% if fichas %}
+          <section class="panel">
+            <div class="panel-head">
+              <h4>Personagens públicos</h4>
+              <span class="badge">{{ fichas|length }}</span>
+            </div>
+            <div class="panel-body grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem">
+              {% for ficha in fichas %}
+                <div class="card card-pad" style="padding:.8rem;text-align:center">
+                  <div class="avatar avatar-lg" style="margin:0 auto .5rem">
+                    {% if ficha.avatar_url %}<img src="{{ ficha.avatar_url }}" alt="">
+                    {% else %}{{ ficha.name[0]|upper }}{% endif %}
+                  </div>
+                  <strong class="truncate" style="display:block;font-size:.9rem">{{ ficha.name }}</strong>
+                  <span class="small muted">{{ get_system(ficha.system_id).short_name }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+
+        {% if mesas %}
+          <section class="panel">
+            <div class="panel-head"><h4>Mesas</h4></div>
+            <div class="panel-body" style="padding:.5rem">
+              {% for mesa in mesas %}
+                <a class="list-row" href="/mesa/{{ mesa.slug }}">
+                  <span class="avatar avatar-sm" style="border-radius:8px">
+                    {{ get_system(mesa.system_id).short_name }}
+                  </span>
+                  <span class="grow" style="min-width:0">
+                    <span class="truncate" style="display:block">{{ mesa.name }}</span>
+                    <span class="small muted">{{ get_system(mesa.system_id).name }}</span>
+                  </span>
+                  {% if not mesa.is_public %}<span class="badge">privada</span>{% endif %}
+                </a>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+      </div>
+
+      <!-- ============ LATERAL ============ -->
+      <aside class="stack stack-md">
+        <div class="card">
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:0">
+            <div class="stat">
+              <div class="stat-num">{{ perfil.memberships|length }}</div>
+              <div class="stat-rot">mesas</div>
+            </div>
+            <div class="stat" style="border-left:1px solid var(--line-soft)">
+              <div class="stat-num">{{ perfil.characters|length }}</div>
+              <div class="stat-rot">fichas</div>
+            </div>
+          </div>
+          <hr class="divider" style="margin:0">
+          <div class="stat">
+            <div class="small muted">Por aqui desde</div>
+            <div style="font-size:.95rem">{{ perfil.created_at | data }}</div>
+          </div>
+        </div>
+
+        <!-- Blocos de vitrine montados pelo próprio usuário -->
+        {% for bloco in showcase %}
+          <div class="panel">
+            <div class="panel-head"><h4>{{ bloco.title }}</h4></div>
+            <div class="panel-body" style="padding:.4rem">
+              {% for item in bloco.get('items', []) %}
+                {% if bloco.type == 'links' %}
+                  <a class="vitrine-item" href="{{ item.value }}" target="_blank" rel="noopener nofollow">
+                    <span>{{ item.label }}</span>
+                    <span class="muted">↗</span>
+                  </a>
+                {% else %}
+                  <div class="vitrine-item">
+                    <span class="muted">{{ item.label }}</span>
+                    <span>{{ item.value }}</span>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </aside>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("adicionar-amigo")?.addEventListener("click", async (evento) => {
+    const botao = evento.currentTarget;
+    await SB.run(async () => {
+      const resposta = await SB.api("/api/amigos", {
+        method: "POST",
+        body: { username: botao.dataset.username },
+      });
+      botao.outerHTML = resposta.auto_accepted
+        ? '<span class="badge badge-accent">amigos</span>'
+        : '<span class="badge">pedido enviado</span>';
+      SB.toast(resposta.auto_accepted ? "Vocês agora são amigos." : "Pedido enviado.", "ok");
+    });
+  });
+
+  document.getElementById("mandar-mensagem")?.addEventListener("click", async (evento) => {
+    const usuario = evento.currentTarget.dataset.username;
+    await SB.run(async () => {
+      const conversa = await SB.api(`/api/conversas?username=${encodeURIComponent(usuario)}`, {
+        method: "POST",
+      });
+      window.location.href = conversa.redirect;
+    });
+  });
+</script>
+{% endblock %}

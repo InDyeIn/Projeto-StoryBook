@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ ficha.name }} — {{ app_name }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/sheet.css">
+{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow" style="padding:2.5rem 0 4rem">
+  <div class="row-between" style="margin-bottom:1.5rem">
+    <div>
+      <p class="eyebrow">Ficha de personagem</p>
+      <h1 style="margin:0;font-size:1.6rem">{{ ficha.name }}</h1>
+    </div>
+    {% if sala %}
+      <a class="btn btn-ghost" href="/mesa/{{ sala.slug }}">Ir para a mesa</a>
+    {% else %}
+      <a class="btn btn-ghost" href="/painel">Painel</a>
+    {% endif %}
+  </div>
+
+  <div class="card card-pad" id="ficha-host">
+    <p class="muted center">Carregando ficha…</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/sheet.js"></script>
+<script>
+  SB.run(async () => {
+    const dados = await SB.api("/api/fichas/{{ ficha.id }}");
+    SB.Sheet.montar(document.getElementById("ficha-host"), {
+      character: dados.character,
+      system: dados.system,
+      canEdit: dados.can_edit,
+      isGm: dados.is_gm,
+    });
+  });
+</script>
+{% endblock %}
