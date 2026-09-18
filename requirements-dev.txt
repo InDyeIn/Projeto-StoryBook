@@ -1,9 +1,9 @@
 -r requirements.txt
 
 # Testes
-pytest==8.3.4
-httpx==0.28.1
+pytest>=8.3,<9.0
+httpx>=0.28,<1.0
 
 # Testes de navegador (tests/e2e/) — opcionais.
 # Depois de instalar: playwright install chromium
-playwright==1.49.1
+playwright>=1.49

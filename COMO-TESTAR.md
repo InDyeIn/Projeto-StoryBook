@@ -7,19 +7,51 @@ Roteiro de 15 minutos que passa por tudo que já funciona. Cada passo diz
 
 ## Parte 0 — Colocar no ar (uma vez)
 
-Você precisa de **Python 3.11+**. Nada mais: o banco é SQLite, criado sozinho.
+Você precisa de **Python 3.11 ou mais novo**. Nada além disso: o banco é SQLite
+e é criado sozinho.
+
+### Linux / macOS
 
 ```bash
 cd Projeto-StoryBook
 
-python -m venv .venv
+python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
 .venv/bin/python seed.py      # cria a mesa de demonstração
 .venv/bin/python run.py       # sobe o servidor
 ```
 
-No Windows, troque `.venv/bin/` por `.venv\Scripts\`.
+### Windows
+
+No Windows o executável fica em `Scripts`, não em `bin`.
+
+**PowerShell ou Prompt de Comando:**
+
+```powershell
+cd Projeto-StoryBook
+
+py -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+
+.venv\Scripts\python seed.py
+.venv\Scripts\python run.py
+```
+
+**Git Bash (MINGW64):** as barras são normais, mas o caminho continua `Scripts`:
+
+```bash
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt
+
+.venv/Scripts/python seed.py
+.venv/Scripts/python run.py
+```
+
+> **Deixe a pasta do projeto num caminho sem espaços nem parênteses.** Algo como
+> `C:\Users\Voce\Downloads\Projeto-StoryBook (1)\...` funciona na maior parte
+> do tempo, mas atrapalha ferramentas que compilam pacotes. Renomear para
+> `C:\projetos\storybook` evita dor de cabeça.
 
 O terminal deve mostrar:
 
@@ -257,8 +289,10 @@ Apaga o banco e recria a mesa de demonstração. Útil depois de bagunçar tudo.
 
 | Sintoma | Causa provável |
 |---|---|
-| `python: command not found` | Use `python3`. |
-| `ModuleNotFoundError: fastapi` | Você rodou com o Python do sistema. Use `.venv/bin/python`. |
+| `python: command not found` | Use `python3` (Linux/macOS) ou `py` (Windows). |
+| `ModuleNotFoundError: fastapi` (ou `sqlalchemy`) | Você rodou com o Python do sistema, ou a instalação não terminou. Use `.venv/bin/python` (`.venv/Scripts/python` no Windows) e confira se o `pip install` terminou sem erro. |
+| No Windows: `.venv/bin/python: No such file or directory` | No Windows é `.venv/Scripts/python`, não `bin`. |
+| `Failed building wheel for Pillow` / `pydantic-core`, falando em **zlib**, **link.exe** ou **Visual Studio build tools** | Ver a seção abaixo. |
 | `Address already in use` | Já tem servidor na 8000. Feche o outro terminal ou use `python run.py --port 8001`. |
 | Página abre mas a mesa não sincroniza | O WebSocket não conectou. Aparece *"Reconectando à mesa…"* no rodapé do mapa. Em produção, quase sempre é o Nginx sem `proxy_set_header Upgrade` (veja o README). |
 | Login não passa com as contas de demonstração | O seed não rodou ou o banco foi apagado. Rode `python seed.py`. |
@@ -266,6 +300,45 @@ Apaga o banco e recria a mesa de demonstração. Útil depois de bagunçar tudo.
 
 Para ver o erro de verdade, olhe o terminal onde o `run.py` está rodando — o
 traceback aparece lá.
+
+### Erro compilando Pillow ou pydantic-core
+
+Se a instalação tentar **compilar** pacotes e reclamar de `zlib`, `link.exe` ou
+*"Visual Studio build tools"*, é porque o pip não achou um pacote pronto para a
+sua versão do Python e foi compilar do zero.
+
+Isso acontecia com o `requirements.txt` antigo, que fixava versões exatas de
+2024 — elas não têm pacote pronto para Python 3.14. **O arquivo atual usa faixas
+de versão**, então o pip escolhe uma versão que tenha pacote pronto para o seu
+Python.
+
+Se você pegou o projeto antes dessa correção, refaça o ambiente:
+
+```bash
+# Git Bash / Linux / macOS
+rm -rf .venv
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt     # no Windows
+```
+
+```powershell
+# PowerShell
+Remove-Item -Recurse -Force .venv
+py -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+```
+
+Deve baixar tudo pronto, sem a etapa de *"Building wheel"*.
+
+Se mesmo assim algo insistir em compilar, instale o **Python 3.13** em
+<https://python.org/downloads> e crie o ambiente com ele:
+
+```powershell
+py -3.13 -m venv .venv
+```
+
+O 3.13 é a versão em que esta aplicação foi testada de ponta a ponta — todas as
+bibliotecas já têm pacote pronto para ela.
 
 ---
 

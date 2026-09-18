@@ -1,23 +1,33 @@
+# Faixas de versão em vez de versões exatas: assim o pip escolhe uma versão que
+# tenha wheel pronto para o seu Python. Fixar a versão exata quebra em Python
+# novo (3.14, por exemplo), porque o pip tenta compilar do zero e passa a
+# exigir compilador, zlib e Rust instalados.
+#
+# Para congelar as versões na VPS depois que tudo estiver funcionando:
+#     pip freeze > requirements.lock.txt
+#     pip install -r requirements.lock.txt
+
 # --- Núcleo da aplicação ---
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-jinja2==3.1.5
-python-multipart==0.0.20
-itsdangerous==2.2.0
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.34,<1.0
+jinja2>=3.1,<4.0
+python-multipart>=0.0.20
+itsdangerous>=2.2,<3.0
 
 # --- Banco de dados ---
-SQLAlchemy==2.0.36
-alembic==1.14.0
+SQLAlchemy>=2.0.36,<2.1
+alembic>=1.14,<2.0
 # Descomente ao migrar para Postgres na VPS:
-# psycopg[binary]==3.2.3
+# psycopg[binary]>=3.2
 
 # --- Configuração e validação ---
-pydantic==2.10.4
-pydantic-settings==2.7.0
-email-validator==2.2.0
+pydantic>=2.10,<3.0
+pydantic-settings>=2.7,<3.0
+email-validator>=2.2,<3.0
 
 # --- Segurança ---
-argon2-cffi==23.1.0
+argon2-cffi>=23.1
 
-# --- Imagens (redimensiona avatar/token no upload) ---
-Pillow==11.1.0
+# --- Imagens (valida e redimensiona avatar/token no upload) ---
+# 11.3 é a primeira com wheel para Python 3.14.
+Pillow>=11.3,<13

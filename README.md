@@ -13,11 +13,18 @@ rodando na sua máquina ou na sua VPS.
 Requisito: **Python 3.11 ou superior**. Nada além disso — o banco padrão é
 SQLite, então não precisa de Docker nem de servidor de banco.
 
+Testado em Python 3.11 e 3.13. No Windows, os comandos usam `.venv\Scripts\`
+em vez de `.venv/bin/` — veja [COMO-TESTAR.md](COMO-TESTAR.md).
+
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python run.py
 ```
+
+> As dependências usam **faixas** de versão (`>=`), não versões fixas, para que
+> o pip escolha pacotes já compilados para a sua versão do Python. Para
+> congelar versões na VPS: `pip freeze > requirements.lock.txt`.
 
 Abra **http://127.0.0.1:8000**. O `run.py` cria o `.env` na primeira execução,
 já com uma `SECRET_KEY` própria.
@@ -25,8 +32,6 @@ já com uma `SECRET_KEY` própria.
 > Primeira vez? **[COMO-TESTAR.md](COMO-TESTAR.md)** tem um roteiro de 15
 > minutos que passa por tudo — mapa, dados, fichas, permissões e tempo real
 > com dois navegadores.
-
-No Windows troque `.venv/bin/` por `.venv\Scripts\`.
 
 ### Dados de demonstração (recomendado na primeira vez)
 
