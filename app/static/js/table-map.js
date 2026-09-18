@@ -252,7 +252,21 @@
           if (finalX !== origemX || finalY !== origemY) {
             token.x = finalX;
             token.y = finalY;
-            estado.onMoveEnd(tokenId, finalX, finalY);
+
+            // Se o servidor recusar, o token não pode ficar num lugar onde só
+            // esta pessoa o enxerga: devolvemos ele à origem e avisamos os
+            // outros, que também receberam a prévia.
+            const desfazer = () => {
+              token.x = origemX;
+              token.y = origemY;
+              no.style.left = `${origemX}px`;
+              no.style.top = `${origemY}px`;
+              estado.onDragLive({
+                token_id: tokenId, x: origemX, y: origemY, final: true,
+              });
+            };
+
+            estado.onMoveEnd(tokenId, finalX, finalY, desfazer);
           }
         }
 

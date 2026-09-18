@@ -22,6 +22,10 @@ python -m venv .venv
 Abra **http://127.0.0.1:8000**. O `run.py` cria o `.env` na primeira execução,
 já com uma `SECRET_KEY` própria.
 
+> Primeira vez? **[COMO-TESTAR.md](COMO-TESTAR.md)** tem um roteiro de 15
+> minutos que passa por tudo — mapa, dados, fichas, permissões e tempo real
+> com dois navegadores.
+
 No Windows troque `.venv/bin/` por `.venv\Scripts\`.
 
 ### Dados de demonstração (recomendado na primeira vez)

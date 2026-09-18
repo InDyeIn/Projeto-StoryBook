@@ -27,10 +27,14 @@ mudou depois de mexer no CSS.
 
 ## O que cada um cobre
 
-| Arquivo             | Cobre                                                            |
-|---------------------|------------------------------------------------------------------|
-| `fluxo_solo.py`     | cadastro, criação de mesa, token, arrasto, chat, dados, ficha, bolinhas, cena, perfil |
-| `dois_usuarios.py`  | amizade, convite pelo chat, presença, sincronia de token, chat em tempo real, revogação de permissão |
+| Arquivo                  | Cobre                                                       |
+|--------------------------|-------------------------------------------------------------|
+| `fluxo_solo.py`          | cadastro, criação de mesa, token, arrasto, chat, dados, ficha, bolinhas, cena, perfil |
+| `dois_usuarios.py`       | amizade, convite pelo chat, presença, sincronia de token, chat em tempo real, revogação de permissão |
+| `permissao_revogada.py`  | o token volta ao lugar quando o servidor recusa o movimento — nos dois navegadores |
+
+`permissao_revogada.py` usa a mesa do seed; rode `python seed.py --reset` antes
+se tiver bagunçado os dados.
 
 Em `dois_usuarios.py`, o último passo tenta de propósito uma ação proibida —
 o `403` que aparece no console do navegador é o teste passando, não uma falha.

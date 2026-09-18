@@ -32,8 +32,11 @@
       return token.owner_id === estado.me.user_id && pode("token.move.own");
     },
 
-    onMoveEnd(tokenId, x, y) {
-      SB.run(() => SB.api(`${API}/tokens/${tokenId}`, { method: "PATCH", body: { x, y } }));
+    onMoveEnd(tokenId, x, y, desfazer) {
+      SB.run(
+        () => SB.api(`${API}/tokens/${tokenId}`, { method: "PATCH", body: { x, y } }),
+        { onError: desfazer },
+      );
     },
 
     onDragLive(dados) {
