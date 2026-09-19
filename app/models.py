@@ -77,6 +77,24 @@ class GridType(str, enum.Enum):
     NONE = "NONE"
 
 
+class BackgroundFit(str, enum.Enum):
+    """Como a imagem de fundo ocupa a cena."""
+
+    CONTAIN = "CONTAIN"   # cabe inteira, sem distorcer (padrão)
+    COVER = "COVER"       # preenche tudo, sem distorcer, cortando o excesso
+    STRETCH = "STRETCH"   # estica até encaixar — distorce
+    TILE = "TILE"         # repete lado a lado, no tamanho original
+    ACTUAL = "ACTUAL"     # tamanho original, sem repetir
+
+
+class DistanceMode(str, enum.Enum):
+    """Como a régua conta a distância entre duas células."""
+
+    GRID = "GRID"            # diagonal custa igual a reta (estilo 5e)
+    EUCLIDEAN = "EUCLIDEAN"  # linha reta de verdade
+    MANHATTAN = "MANHATTAN"  # só em cruz, sem diagonal
+
+
 class TokenLayer(str, enum.Enum):
     BACKGROUND = "BACKGROUND"
     TOKENS = "TOKENS"
@@ -331,6 +349,10 @@ class Scene(Base):
     name: Mapped[str] = mapped_column(String(80))
     background_url: Mapped[str | None] = mapped_column(String(512), default=None)
     background_color: Mapped[str] = mapped_column(String(9), default="#0a0d1a")
+    #: Enquadramento da imagem de fundo — evita o mapa esticado.
+    background_fit: Mapped[BackgroundFit] = mapped_column(
+        Enum(BackgroundFit), default=BackgroundFit.CONTAIN
+    )
     grid_type: Mapped[GridType] = mapped_column(Enum(GridType), default=GridType.SQUARE)
     grid_size: Mapped[int] = mapped_column(Integer, default=64)   # px por célula
     grid_color: Mapped[str] = mapped_column(String(9), default="#2a3354")
@@ -341,6 +363,14 @@ class Scene(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    # --- Régua ---
+    #: Quanto vale uma célula no mundo do jogo (1,5 m é o padrão de mesa).
+    units_per_cell: Mapped[float] = mapped_column(Float, default=1.5)
+    unit_name: Mapped[str] = mapped_column(String(12), default="m")
+    distance_mode: Mapped[DistanceMode] = mapped_column(
+        Enum(DistanceMode), default=DistanceMode.GRID
+    )
 
     room: Mapped[Room] = relationship(back_populates="scenes")
     tokens: Mapped[list["Token"]] = relationship(

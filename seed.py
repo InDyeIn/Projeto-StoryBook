@@ -143,7 +143,6 @@ def semear() -> None:
         # ---------------- Mesa ----------------
         sistema = get_system("triangle-agency")
         config = {opcao.key: opcao.default for opcao in sistema.room_options}
-        config["dificuldade_padrao"] = "4"
 
         sala = Room(
             name="Incidente no Arquivo Morto",
@@ -177,6 +176,8 @@ def semear() -> None:
             is_active=True,
             order=0,
             background_color="#0a0d1a",
+            units_per_cell=1.5,
+            unit_name="m",
         )
         escritorio = Scene(
             room_id=sala.id,
@@ -209,26 +210,41 @@ def semear() -> None:
             db.flush()
             return ficha
 
+        # As 9 GQs iniciais ficam em 3 Qualidades, como manda o livro.
         ficha_ruan = nova_ficha(
             ruan,
             "Agente Teixeira",
             {
-                "identidade.nome_agente": "Ruan Teixeira",
-                "identidade.codinome": "Caneta Azul",
-                "identidade.divisao": "arquivo",
+                "identidade.nome": "Ruan Teixeira",
                 "identidade.pronomes": "ele/dele",
-                "competencias.burocracia": 4,
-                "competencias.investigacao": 3,
-                "competencias.fisico": 1,
-                "competencias.intuicao": 2,
-                "realidade.atual": 5,
-                "anomalia.nome": "Rodapé Persistente",
-                "anomalia.descricao": "Todo documento que ele lê ganha uma nota de rodapé que ninguém escreveu.",
-                "anomalia.consequencia": "A nota sempre é verdadeira. E sempre é sobre ele.",
-                "equipamento": [
-                    {"nome": "Crachá nível 2", "qtd": 1, "notas": "vence em 3 dias"},
-                    {"nome": "Grampeador reforçado", "qtd": 1, "notas": ""},
+                "identidade.aparencia": "Camisa amassada, crachá sempre virado do lado errado.",
+                "arc.anomalia": "catalogo",
+                "arc.realidade": "endividado",
+                "arc.competencia": "p&d",
+                "arc.gatilho_realidade": "Quando alguém menciona uma dívida perto dele.",
+                "arc.alivio_burnout": "Organizar alguma coisa que ninguém pediu para organizar.",
+                "arc.diretriz_primaria": "Documentar antes de agir.",
+                "arc.comportamentos": "Catalogar, medir, conferir duas vezes.",
+                "qualidades.atencao": {"atual": 4, "max": 4},
+                "qualidades.profissionalismo": {"atual": 2, "max": 3},
+                "qualidades.persistencia": {"atual": 2, "max": 2},
+                "habilidades": [
+                    {
+                        "nome": "Índice Vivo",
+                        "sucesso": "Você sabe onde está o objeto que procura.",
+                        "fracasso": "Você sabe onde ele estava. Alguém moveu.",
+                    },
+                    {
+                        "nome": "Nota de Rodapé",
+                        "sucesso": "Um documento ganha uma linha verdadeira que ninguém escreveu.",
+                        "fracasso": "A linha aparece. É sobre você.",
+                    },
                 ],
+                "relacionamentos": [
+                    {"nome": "Sra. Antunes", "relacao": "Credora", "estado": "Paciente, por enquanto."},
+                    {"nome": "Léo", "relacao": "Irmão mais novo", "estado": "Não sabe do emprego."},
+                ],
+                "estado.meritos": 2,
                 "notas": "Perguntar à Halima sobre a caixa 14-B.",
             },
         )
@@ -237,17 +253,24 @@ def semear() -> None:
             dani,
             "Agente Moraes",
             {
-                "identidade.nome_agente": "Dani Moraes",
-                "identidade.codinome": "Escada",
-                "identidade.divisao": "contencao",
-                "competencias.burocracia": 1,
-                "competencias.investigacao": 2,
-                "competencias.fisico": 4,
-                "competencias.intuicao": 3,
-                "confianca.atual": 2,
-                "anomalia.nome": "Porta Extra",
-                "anomalia.descricao": "Corredores em que ela entra ganham uma porta a mais.",
-                "anomalia.consequencia": "Alguém sempre já saiu por ela.",
+                "identidade.nome": "Dani Moraes",
+                "identidade.pronomes": "ela/dela",
+                "arc.anomalia": "emaranhado",
+                "arc.realidade": "sobrecarregado",
+                "arc.competencia": "coveiro",
+                "arc.gatilho_realidade": "Quando precisa escolher entre duas obrigações.",
+                "arc.alivio_burnout": "Terminar alguma coisa, qualquer coisa, até o fim.",
+                "qualidades.dinamismo": {"atual": 4, "max": 4},
+                "qualidades.sutileza": {"atual": 3, "max": 3},
+                "qualidades.iniciativa": {"atual": 1, "max": 2},
+                "habilidades": [
+                    {
+                        "nome": "Porta Extra",
+                        "sucesso": "O corredor ganha uma saída que não estava na planta.",
+                        "fracasso": "Ganha. Alguém já saiu por ela.",
+                    },
+                ],
+                "estado.burnout": 1,
             },
         )
 
@@ -255,10 +278,10 @@ def semear() -> None:
             halima,
             "Supervisor Krell",
             {
-                "identidade.nome_agente": "Krell",
-                "identidade.divisao": "relacoes",
-                "competencias.burocracia": 6,
-                "notas_mestre": "Krell já morreu. Ninguém no escritório notou ainda.",
+                "identidade.nome": "Krell",
+                "arc.competencia": "rp",
+                "qualidades.duplicidade": {"atual": 6, "max": 6},
+                "notas_gm": "Krell já morreu. Ninguém no escritório notou ainda.",
             },
             npc=True,
             visibilidade=CharacterVisibility.PRIVATE,
@@ -349,12 +372,20 @@ def semear() -> None:
 
 def resetar() -> None:
     Base.metadata.drop_all(bind=engine)
+
     if settings.is_sqlite:
+        # Fecha as conexões ANTES de apagar o arquivo. No Linux, um arquivo
+        # apagado continua vivo enquanto alguém o mantém aberto — sem este
+        # dispose(), as tabelas seriam recriadas no arquivo fantasma e o
+        # storybook.db no disco ficaria vazio.
+        engine.dispose()
+
         caminho = settings.database_url.split("///")[-1]
         for sufixo in ("", "-wal", "-shm"):
             arquivo = Path(caminho + sufixo)
             if arquivo.exists():
                 arquivo.unlink()
+
     print("Banco apagado.")
 
 

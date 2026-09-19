@@ -55,6 +55,12 @@
       socket.send("cursor", ponto);
     },
 
+    onRuler(dados) {
+      socket.send("ruler", dados);
+    },
+
+    minhaCor: estado.me.color,
+
     onZoom(zoom) {
       document.getElementById("nivel-zoom").textContent = `${Math.round(zoom * 100)}%`;
     },
@@ -63,6 +69,24 @@
   mapa.desenharCena(estado.scene);
   estado.tokens.forEach((token) => mapa.desenharToken(token));
   mapa.centralizar();
+
+  const botaoRegua = document.getElementById("modo-regua");
+  if (botaoRegua) {
+    botaoRegua.onclick = () => {
+      const ligada = mapa.alternarRegua();
+      botaoRegua.classList.toggle("is-on", ligada);
+      botaoRegua.setAttribute("aria-pressed", String(ligada));
+    };
+  }
+
+  // Esc desliga a régua; Shift mede sem precisar ligar o modo.
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape" && mapa.reguaAtiva) {
+      mapa.alternarRegua(false);
+      botaoRegua?.classList.remove("is-on");
+      botaoRegua?.setAttribute("aria-pressed", "false");
+    }
+  });
 
   document.getElementById("zoom-mais").onclick = () => mapa.ajustarZoom(1.2);
   document.getElementById("zoom-menos").onclick = () => mapa.ajustarZoom(1 / 1.2);
@@ -129,17 +153,39 @@
 
     if (mensagem.kind === "ROLL" && mensagem.payload) {
       const rolagem = mensagem.payload;
-      const total = rolagem.is_pool
-        ? `${rolagem.successes} ${rolagem.successes === 1 ? "sucesso" : "sucessos"}`
-        : rolagem.total;
 
-      const bloco = el("div", { class: "rolagem" },
+      // Pools contam sucessos; o resto soma. O nome do "sucesso" vem do
+      // sistema (o Triangle Agency chama de "3").
+      let total;
+      if (rolagem.is_pool) {
+        const palavra = rolagem.success_word || "sucesso";
+        const n = rolagem.successes ?? 0;
+        total = `${n} ${n === 1 ? palavra : palavra + "s"}`;
+      } else {
+        total = String(rolagem.total);
+      }
+
+      const bloco = el("div", {
+        class: `rolagem${rolagem.highlight ? " rolagem-destaque" : ""}`,
+      },
         el("div", { class: "rolagem-topo" },
           el("div", {},
             rolagem.label ? el("div", { class: "rolagem-rotulo" }, rolagem.label) : null,
             el("div", { class: "rolagem-formula" }, rolagem.formula)),
           el("div", { class: "rolagem-total" }, String(total))),
         desenharFaces(rolagem));
+
+      if (rolagem.highlight) {
+        bloco.append(el("div", { class: "rolagem-selo" }, `✦ ${rolagem.highlight}`));
+      }
+      if (rolagem.resource_name) {
+        bloco.append(el("div", { class: "rolagem-recurso" },
+          el("span", {}, `${rolagem.resource_name} gerado`),
+          el("strong", {}, String(rolagem.resource_amount ?? 0))));
+      }
+      if (rolagem.failure_note && !rolagem.highlight) {
+        bloco.append(el("div", { class: "rolagem-nota" }, rolagem.failure_note));
+      }
       corpo.append(bloco);
     } else {
       corpo.append(el("div", { class: "msg-texto" }, mensagem.body));
@@ -332,9 +378,52 @@
      PAINEL: CENA
      ==================================================================== */
   const formCena = document.getElementById("form-cena");
+
+  /** Reescreve os campos do formulário com os valores atuais da cena.
+   *  Sem isto, o formulário guarda o que veio no carregamento da página: se a
+   *  cena for redimensionada (pelo upload do mapa ou por outra pessoa), o
+   *  próximo "Salvar cena" mandaria os valores velhos e desfaria o ajuste. */
+  function sincronizarFormCena(cena) {
+    if (!formCena || !cena) return;
+    const valores = {
+      name: cena.name,
+      grid_type: cena.grid_type,
+      grid_size: cena.grid_size,
+      grid_color: cena.grid_color,
+      background_color: cena.background_color,
+      background_fit: cena.background_fit,
+      units_per_cell: cena.units_per_cell,
+      unit_name: cena.unit_name,
+      distance_mode: cena.distance_mode,
+      width: cena.width,
+      height: cena.height,
+    };
+    for (const [campo, valor] of Object.entries(valores)) {
+      const entrada = formCena.querySelector(`[name="${campo}"]`);
+      if (entrada && valor !== undefined && valor !== null) entrada.value = valor;
+    }
+    for (const campo of ["grid_visible", "snap_to_grid"]) {
+      const entrada = formCena.querySelector(`[name="${campo}"]`);
+      if (entrada) entrada.checked = Boolean(cena[campo]);
+    }
+  }
+
   if (formCena) {
     formCena.addEventListener("submit", async (evento) => {
       evento.preventDefault();
+
+      // O navegador bloqueia o submit de campos inválidos sem dizer nada a
+      // quem só clicou em "Salvar". Melhor apontar o campo.
+      if (!formCena.checkValidity()) {
+        const invalido = formCena.querySelector(":invalid");
+        invalido?.focus();
+        SB.toast(
+          invalido?.validationMessage || "Há um campo inválido no formulário.",
+          "error",
+        );
+        return;
+      }
+
       const dados = Object.fromEntries(new FormData(formCena));
       await SB.run(async () => {
         await SB.api(`${API}/cenas/${mapa.cena.id}`, {
@@ -345,6 +434,10 @@
             grid_size: Number(dados.grid_size),
             grid_color: dados.grid_color,
             background_color: dados.background_color,
+            background_fit: dados.background_fit,
+            units_per_cell: Number(dados.units_per_cell),
+            unit_name: dados.unit_name,
+            distance_mode: dados.distance_mode,
             width: Number(dados.width),
             height: Number(dados.height),
             grid_visible: formCena.querySelector('[name="grid_visible"]').checked,
@@ -355,6 +448,8 @@
       });
     });
 
+    sincronizarFormCena(estado.scene);
+
     document.getElementById("cena-fundo")?.addEventListener("change", async (evento) => {
       const arquivo = evento.target.files?.[0];
       if (!arquivo) return;
@@ -363,14 +458,53 @@
       dados.append("kind", "scene");
       await SB.run(async () => {
         const enviado = await SB.api("/api/upload", { method: "POST", body: dados });
-        await SB.api(`${API}/cenas/${mapa.cena.id}`, {
-          method: "PATCH",
-          body: { background_url: enviado.url },
-        });
-        SB.toast("Mapa atualizado.", "ok");
+
+        // A cena passa a ter o tamanho da imagem, em casas. Sem isso a imagem
+        // era espremida no retângulo antigo e o mapa saía achatado.
+        const corpo = { background_url: enviado.url, background_fit: "CONTAIN" };
+        Object.assign(corpo, medidasParaImagem(enviado.width, enviado.height));
+
+        const r = await SB.api(`${API}/cenas/${mapa.cena.id}`, { method: "PATCH", body: corpo });
+        mapa.desenharCena(r.scene);
+        sincronizarFormCena(r.scene);
+        SB.toast("Mapa enviado e cena ajustada.", "ok");
       });
     });
   }
+
+  /** Converte pixels da imagem em casas da cena, respeitando o tamanho da célula. */
+  function medidasParaImagem(largura, altura) {
+    const passo = mapa.cena.grid_size || 64;
+    return {
+      width: Math.max(5, Math.min(200, Math.round(largura / passo))),
+      height: Math.max(5, Math.min(200, Math.round(altura / passo))),
+    };
+  }
+
+  document.getElementById("ajustar-a-imagem")?.addEventListener("click", () => {
+    const url = mapa.cena.background_url;
+    if (!url) {
+      SB.toast("Esta cena ainda não tem imagem de fundo.", "info");
+      return;
+    }
+
+    // Lê o tamanho real do arquivo antes de redimensionar a cena.
+    const img = new Image();
+    img.onload = () => {
+      const medidas = medidasParaImagem(img.naturalWidth, img.naturalHeight);
+      SB.run(async () => {
+        const r = await SB.api(`${API}/cenas/${mapa.cena.id}`, {
+          method: "PATCH",
+          body: { ...medidas, background_fit: "CONTAIN" },
+        });
+        mapa.desenharCena(r.scene);
+        sincronizarFormCena(r.scene);
+        SB.toast(`Cena ajustada para ${medidas.width} × ${medidas.height} casas.`, "ok");
+      });
+    };
+    img.onerror = () => SB.toast("Não consegui ler a imagem de fundo.", "error");
+    img.src = url;
+  });
 
   document.getElementById("nova-cena")?.addEventListener("click", async () => {
     const nome = prompt("Nome da nova cena:");
@@ -544,6 +678,38 @@
   });
 
   /* ====================================================================
+     APAGAR A MESA / SAIR
+     ==================================================================== */
+  document.getElementById("apagar-mesa")?.addEventListener("click", (evento) => {
+    const nome = evento.currentTarget.dataset.nome;
+    // Digitar o nome evita apagar a mesa errada por um clique distraído.
+    const resposta = prompt(
+      `Isto apaga "${nome}" com cenas, tokens, fichas e chat. Não dá para desfazer.\n\n` +
+      `Para confirmar, escreva o nome da mesa:`
+    );
+    if (resposta === null) return;
+    if (resposta.trim() !== nome) {
+      SB.toast("O nome não confere. Nada foi apagado.", "error");
+      return;
+    }
+
+    SB.run(async () => {
+      const r = await SB.api(API, { method: "DELETE" });
+      window.location.href = r.redirect || "/painel";
+    });
+  });
+
+  document.getElementById("sair-da-mesa")?.addEventListener("click", (evento) => {
+    if (!confirm("Sair desta mesa? Você precisará de um convite para voltar.")) return;
+    SB.run(async () => {
+      await SB.api(`${API}/membros/${evento.currentTarget.dataset.membro}`, {
+        method: "DELETE",
+      });
+      window.location.href = "/painel";
+    });
+  });
+
+  /* ====================================================================
      WEBSOCKET
      ==================================================================== */
   const aviso = document.getElementById("aviso-conexao");
@@ -576,7 +742,10 @@
           break;
 
         case "scene:updated":
-          if (dados.id === mapa.cena.id) mapa.desenharCena(dados);
+          if (dados.id === mapa.cena.id) {
+            mapa.desenharCena(dados);
+            sincronizarFormCena(dados);
+          }
           break;
 
         case "scene:switched":
@@ -624,12 +793,24 @@
           online.delete(dados.user_id);
           cursores.get(dados.user_id)?.remove();
           cursores.delete(dados.user_id);
+          mapa.reguaRemota(dados.user_id, null);
           desenharMembros();
           break;
 
         case "cursor":
           desenharCursor(dados);
           break;
+
+        case "ruler": {
+          const quem = membrosPorId.get(dados.user_id);
+          mapa.reguaRemota(
+            dados.user_id,
+            dados.data,
+            quem?.color || "#5ce1e6",
+            quem?.user?.display_name,
+          );
+          break;
+        }
 
         case "typing":
           mostrarDigitando(dados.display_name);

@@ -5,7 +5,8 @@ Notação suportada::
     d20              um dado de 20
     2d6+3            soma com modificador
     4d6kh3 / 4d6kl1  mantém os N maiores / menores
-    6d6>=5           conta sucessos (pool de dados, usado pelo Triangle Agency)
+    6d6>=5           conta sucessos (pool de dados)
+    6d4=3            conta sucessos por valor exato (Triangle Agency)
     2d6!             dado explosivo (relança no valor máximo)
     1d20+2d4-1       vários termos na mesma expressão
 """
@@ -25,7 +26,7 @@ _TERM_RE = re.compile(
     (?P<count>\d*)d(?P<sides>\d+)
     (?P<explode>!)?
     (?:(?P<keep_mode>kh|kl)(?P<keep_count>\d+))?
-    (?:(?P<cmp>>=|<=|>|<)(?P<target>\d+))?
+    (?:(?P<cmp>>=|<=|>|<|=)(?P<target>\d+))?
     $""",
     re.IGNORECASE | re.VERBOSE,
 )
@@ -174,6 +175,7 @@ def roll(formula: str, label: str | None = None) -> RollResult:
                     "<=": die.value <= target,
                     ">": die.value > target,
                     "<": die.value < target,
+                    "=": die.value == target,
                 }[comparison]
                 if die.success:
                     term_successes += 1

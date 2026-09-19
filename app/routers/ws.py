@@ -179,6 +179,15 @@ async def room_socket(websocket: WebSocket, slug: str):
                     channel, "token:dragging", dados, exclude_user=user.id
                 )
 
+            elif event == "ruler":
+                # Régua de medição: efêmera, some quando a pessoa solta.
+                await manager.broadcast(
+                    channel,
+                    "ruler",
+                    {"user_id": user.id, "data": payload.get("data")},
+                    exclude_user=user.id,
+                )
+
             elif event == "typing":
                 await manager.broadcast(
                     channel,

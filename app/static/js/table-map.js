@@ -14,6 +14,16 @@
   const ZOOM_MIN = 0.25;
   const ZOOM_MAX = 3;
 
+  /* Como a imagem de fundo ocupa a cena. "STRETCH" é o único que distorce —
+     era o comportamento antigo, que achatava mapas fora da proporção. */
+  const AJUSTE_DE_FUNDO = {
+    CONTAIN: { size: "contain", repeat: "no-repeat", position: "center center" },
+    COVER: { size: "cover", repeat: "no-repeat", position: "center center" },
+    STRETCH: { size: "100% 100%", repeat: "no-repeat", position: "center center" },
+    TILE: { size: "auto", repeat: "repeat", position: "top left" },
+    ACTUAL: { size: "auto", repeat: "no-repeat", position: "top left" },
+  };
+
   function criarMapa(opcoes) {
     const viewport = opcoes.viewport;
     const mundo = opcoes.world;
@@ -34,6 +44,9 @@
       onSelect: opcoes.onSelect || (() => {}),
       onContext: opcoes.onContext || (() => {}),
       onCursor: opcoes.onCursor || (() => {}),
+      onRuler: opcoes.onRuler || (() => {}),
+      minhaCor: opcoes.minhaCor || "#7c5cff",
+      reguaAtiva: false,
     };
 
     /* ------------------------------------------------------------------
@@ -90,6 +103,11 @@
       mundo.style.background = cena.background_color || "#0a0d1a";
 
       fundo.style.backgroundImage = cena.background_url ? `url("${cena.background_url}")` : "none";
+
+      const ajuste = AJUSTE_DE_FUNDO[cena.background_fit] || AJUSTE_DE_FUNDO.CONTAIN;
+      fundo.style.backgroundSize = ajuste.size;
+      fundo.style.backgroundRepeat = ajuste.repeat;
+      fundo.style.backgroundPosition = ajuste.position;
 
       if (!cena.grid_visible || cena.grid_type === "NONE") {
         grade.style.backgroundImage = "none";
@@ -277,9 +295,119 @@
     }
 
     /* ------------------------------------------------------------------
+       Régua
+       ------------------------------------------------------------------ */
+    const reguas = new Map();  // user_id -> elementos da régua na tela
+
+    function distanciaEmCelulas(a, b) {
+      const passo = estado.scene.grid_size || 64;
+      const dx = Math.abs(b.x - a.x) / passo;
+      const dy = Math.abs(b.y - a.y) / passo;
+
+      switch (estado.scene.distance_mode) {
+        case "EUCLIDEAN":
+          return Math.hypot(dx, dy);
+        case "MANHATTAN":
+          return dx + dy;
+        default:
+          // Diagonal custa o mesmo que reta — a contagem usual de mesa.
+          return Math.max(dx, dy);
+      }
+    }
+
+    function textoDaDistancia(a, b) {
+      const celulas = distanciaEmCelulas(a, b);
+      const porCelula = estado.scene.units_per_cell || 1;
+      const unidade = estado.scene.unit_name || "m";
+      const valor = celulas * porCelula;
+      const arredondado = Math.round(valor * 10) / 10;
+      const qtdCelulas = Math.round(celulas * 10) / 10;
+      return `${arredondado} ${unidade}  ·  ${qtdCelulas} ${qtdCelulas === 1 ? "casa" : "casas"}`;
+    }
+
+    function desenharRegua(userId, a, b, cor, nome) {
+      let r = reguas.get(userId);
+      if (!r) {
+        const linha = el("div", { class: "regua-linha" });
+        const etiqueta = el("div", { class: "regua-etiqueta" });
+        const origem = el("div", { class: "regua-ponto" });
+        const destino = el("div", { class: "regua-ponto" });
+        mundo.append(linha, origem, destino, etiqueta);
+        r = { linha, etiqueta, origem, destino };
+        reguas.set(userId, r);
+      }
+
+      const comprimento = Math.hypot(b.x - a.x, b.y - a.y);
+      const angulo = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+
+      r.linha.style.cssText =
+        `left:${a.x}px; top:${a.y}px; width:${comprimento}px;` +
+        `transform: rotate(${angulo}deg); --cor:${cor};`;
+      r.origem.style.cssText = `left:${a.x}px; top:${a.y}px; --cor:${cor};`;
+      r.destino.style.cssText = `left:${b.x}px; top:${b.y}px; --cor:${cor};`;
+      r.etiqueta.style.cssText = `left:${b.x}px; top:${b.y}px; --cor:${cor};`;
+      r.etiqueta.textContent = nome
+        ? `${nome}: ${textoDaDistancia(a, b)}`
+        : textoDaDistancia(a, b);
+    }
+
+    function apagarRegua(userId) {
+      const r = reguas.get(userId);
+      if (!r) return;
+      Object.values(r).forEach((no) => no.remove());
+      reguas.delete(userId);
+    }
+
+    let medindo = null;
+
+    function iniciarMedicao(clientX, clientY) {
+      const ponto = paraCoordenadasDoMundo(clientX, clientY);
+      medindo = { de: ponto, para: ponto };
+      desenharRegua("eu", medindo.de, medindo.para, estado.minhaCor, null);
+      estado.onRuler({ from: medindo.de, to: medindo.para });
+    }
+
+    function atualizarMedicao(clientX, clientY) {
+      if (!medindo) return;
+      medindo.para = paraCoordenadasDoMundo(clientX, clientY);
+      desenharRegua("eu", medindo.de, medindo.para, estado.minhaCor, null);
+      anunciarRegua(medindo.de, medindo.para);
+    }
+
+    const anunciarRegua = SB.debounce((de, para) => {
+      estado.onRuler({ from: de, to: para });
+    }, 60);
+
+    function encerrarMedicao() {
+      if (!medindo) return;
+      medindo = null;
+      apagarRegua("eu");
+      anunciarRegua.cancel();
+      estado.onRuler(null);
+    }
+
+    /* ------------------------------------------------------------------
        Navegação do viewport
        ------------------------------------------------------------------ */
     viewport.addEventListener("pointerdown", (evento) => {
+      // Régua ligada (ou Shift segurado): medir em vez de arrastar o mapa.
+      if (evento.button === 0 && (estado.reguaAtiva || evento.shiftKey)) {
+        evento.preventDefault();
+        viewport.setPointerCapture(evento.pointerId);
+        iniciarMedicao(evento.clientX, evento.clientY);
+
+        const mover = (e) => atualizarMedicao(e.clientX, e.clientY);
+        const soltar = () => {
+          viewport.releasePointerCapture(evento.pointerId);
+          viewport.removeEventListener("pointermove", mover);
+          viewport.removeEventListener("pointerup", soltar);
+          encerrarMedicao();
+        };
+        viewport.addEventListener("pointermove", mover);
+        viewport.addEventListener("pointerup", soltar);
+        return;
+      }
+
       // Botão esquerdo em área vazia ou botão do meio: arrasta o mapa.
       if (evento.button !== 0 && evento.button !== 1) return;
       if (evento.target.closest(".token")) return;
@@ -327,6 +455,23 @@
       ajustarZoom: (fator) => {
         const caixa = viewport.getBoundingClientRect();
         ajustarZoom(fator, caixa.left + caixa.width / 2, caixa.top + caixa.height / 2);
+      },
+      get reguaAtiva() {
+        return estado.reguaAtiva;
+      },
+      alternarRegua(ligada) {
+        estado.reguaAtiva = ligada === undefined ? !estado.reguaAtiva : ligada;
+        viewport.classList.toggle("modo-regua", estado.reguaAtiva);
+        return estado.reguaAtiva;
+      },
+      reguaRemota(userId, dados, cor, nome) {
+        if (!dados) apagarRegua(userId);
+        else desenharRegua(userId, dados.from, dados.to, cor, nome);
+      },
+      limparReguasRemotas() {
+        for (const id of [...reguas.keys()]) {
+          if (id !== "eu") apagarRegua(id);
+        }
       },
       confirmarPosicao(tokenId) {
         const no = estado.nos.get(tokenId);

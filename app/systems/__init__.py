@@ -10,6 +10,7 @@ from app.systems.base import (  # noqa: F401 — reexportados para conveniência
     Field,
     ListColumn,
     Option,
+    PoolRules,
     QuickRoll,
     QuickRollDef,
     RpgSystem,
@@ -108,3 +109,38 @@ def apply_room_difficulty(formula: str, room_config: dict | None) -> str:
     except (TypeError, ValueError):
         return formula
     return re.sub(r">=\d+", f">={target_int}", formula)
+
+
+def read_pool(system: RpgSystem, resultado) -> dict:
+    """Traduz uma rolagem de pool nos termos do sistema.
+
+    Devolve as chaves extras que o chat mostra: recurso gerado (Caos), se houve
+    destaque (Triscendência) e o texto do resumo. Sistemas sem `pool_rules`
+    recebem um dicionário vazio e nada muda.
+    """
+    regras = system.pool_rules
+    if regras is None or not resultado.is_pool:
+        return {}
+
+    sucessos = resultado.successes or 0
+    total_dados = sum(
+        1 for termo in resultado.terms for dado in termo.dice if dado.kept
+    )
+
+    extras: dict = {"success_word": regras.success_word}
+
+    destaque = regras.highlight_at is not None and sucessos == regras.highlight_at
+    if destaque and regras.highlight_name:
+        extras["highlight"] = regras.highlight_name
+
+    if regras.resource_per_failure:
+        gerado = max(0, total_dados - sucessos)
+        if destaque and regras.highlight_clears_resource:
+            gerado = 0
+        extras["resource_name"] = regras.resource_per_failure
+        extras["resource_amount"] = gerado
+
+    if sucessos == 0 and regras.failure_note:
+        extras["failure_note"] = regras.failure_note
+
+    return extras

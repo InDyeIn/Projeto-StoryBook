@@ -49,6 +49,21 @@ generico = RpgSystem(
             options=[Option("d20", "d20"), Option("2d6", "2d6"), Option("d100", "d100")],
         ),
         SystemOption(key="vida_inicial", label="Vida inicial", type="number", default=10),
+        SystemOption(
+            key="dificuldade_padrao",
+            label="Alvo padrão das pools",
+            hint=(
+                "Vale para fórmulas que contam sucessos (ex.: 5d6>=4). "
+                "Deixe em 4 se a mesa não usar pools."
+            ),
+            type="select",
+            default="4",
+            options=[
+                Option("3", "3+ (generosa)"),
+                Option("4", "4+ (padrão)"),
+                Option("5", "5+ (dura)"),
+            ],
+        ),
     ],
     defaults={
         "conceito": "",

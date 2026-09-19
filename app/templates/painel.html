@@ -13,6 +13,26 @@
   @media (max-width: 980px) { .painel-grid { grid-template-columns: 1fr; } }
 
   .sala-card { overflow: hidden; display: flex; flex-direction: column; }
+
+  .sala-wrap { position: relative; }
+  .sala-apagar {
+    position: absolute;
+    top: .6rem; right: .6rem;
+    z-index: 3;
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(7, 10, 20, .8);
+    backdrop-filter: blur(6px);
+    color: var(--ink-mute);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, color .15s, border-color .15s;
+  }
+  .sala-wrap:hover .sala-apagar,
+  .sala-apagar:focus-visible { opacity: 1; }
+  .sala-apagar:hover { color: var(--red); border-color: rgba(255,107,107,.5); }
   .sala-capa {
     height: 96px;
     position: relative;
@@ -75,6 +95,12 @@
       {% if salas %}
         <div class="grid grid-auto">
           {% for sala in salas %}
+            <div class="sala-wrap">
+            {% if sala.owner.id == user.id %}
+              <button class="sala-apagar" data-apagar="{{ sala.slug }}"
+                      data-nome="{{ sala.name }}"
+                      title="Apagar a mesa" aria-label="Apagar a mesa {{ sala.name }}">🗑</button>
+            {% endif %}
             <a class="card card-link sala-card" href="/mesa/{{ sala.slug }}">
               <div class="sala-capa" style="
                 {% if sala.banner_url %}background-image:url('{{ sala.banner_url }}');
@@ -100,6 +126,7 @@
                 </div>
               </div>
             </a>
+            </div>
           {% endfor %}
         </div>
       {% else %}
@@ -328,6 +355,30 @@
       lista.append(campo);
     }
   }
+
+  /* ---------- Apagar mesa (só aparece para quem é dono) ---------- */
+  document.addEventListener("click", (evento) => {
+    const botao = evento.target.closest("[data-apagar]");
+    if (!botao) return;
+    evento.preventDefault();
+
+    const { apagar: slug, nome } = botao.dataset;
+    const resposta = prompt(
+      `Isto apaga "${nome}" com cenas, tokens, fichas e chat. Não dá para desfazer.\n\n` +
+      `Para confirmar, escreva o nome da mesa:`
+    );
+    if (resposta === null) return;
+    if (resposta.trim() !== nome) {
+      SB.toast("O nome não confere. Nada foi apagado.", "error");
+      return;
+    }
+
+    SB.run(async () => {
+      await SB.api(`/api/salas/${slug}`, { method: "DELETE" });
+      botao.closest(".sala-wrap")?.remove();
+      SB.toast(`"${nome}" foi apagada.`, "ok");
+    });
+  });
 
   document.getElementById("seletor-sistema").addEventListener("change", montarOpcoes);
   montarOpcoes();

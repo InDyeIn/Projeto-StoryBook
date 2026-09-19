@@ -132,6 +132,10 @@ class SceneIn(Base):
     name: str = Field(min_length=1, max_length=64)
     background_url: str | None = Field(default=None, max_length=512)
     background_color: str | None = None
+    background_fit: Literal["CONTAIN", "COVER", "STRETCH", "TILE", "ACTUAL"] | None = None
+    units_per_cell: float | None = Field(default=None, gt=0, le=1000)
+    unit_name: str | None = Field(default=None, max_length=12)
+    distance_mode: Literal["GRID", "EUCLIDEAN", "MANHATTAN"] | None = None
     grid_type: Literal["SQUARE", "HEX", "NONE"] | None = None
     grid_size: int | None = Field(default=None, ge=16, le=256)
     grid_color: str | None = None

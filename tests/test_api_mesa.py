@@ -16,7 +16,7 @@ def mesa(fazer_usuario):
             "description": "Só para os testes.",
             "system_id": "triangle-agency",
             "max_players": 3,
-            "system_config": {"dificuldade_padrao": "5"},
+            "system_config": {"gqs_iniciais": 12},
         },
     )
     assert resposta.status_code == 200, resposta.text
@@ -43,8 +43,8 @@ def test_criar_mesa_gera_slug_cena_e_convite(mesa):
     assert dados["scene"]["is_active"] is True
     assert len(dados["room"]["invite_code"]) == 8
     # As opções não informadas vêm preenchidas com o padrão do sistema.
-    assert dados["room"]["system_config"]["dificuldade_padrao"] == "5"
-    assert "usar_comissoes" in dados["room"]["system_config"]
+    assert dados["room"]["system_config"]["gqs_iniciais"] == 12
+    assert "anomalias_visiveis" in dados["room"]["system_config"]
 
 
 def test_slug_repetido_ganha_sufixo(fazer_usuario):
@@ -294,8 +294,18 @@ def test_rolagem_no_chat_vira_mensagem(mesa):
     assert 5 <= mensagem["payload"]["total"] <= 15
 
 
-def test_rolagem_aplica_a_dificuldade_da_sala(mesa):
-    mestre, sala = mesa  # a sala foi criada com dificuldade 5
+def test_rolagem_aplica_a_dificuldade_da_sala(fazer_usuario):
+    """Sistemas que expõem `dificuldade_padrao` reescrevem o alvo das pools."""
+    mestre = fazer_usuario("arbitro")
+    sala = mestre.post(
+        "/api/salas",
+        json={
+            "name": "Mesa Difícil",
+            "system_id": "generico",
+            "system_config": {"dificuldade_padrao": "5"},
+        },
+    ).json()
+
     resposta = mestre.post(f"/api/salas/{sala['slug']}/rolar", json={"formula": "4d6>=4"})
     assert resposta.json()["roll"]["formula"] == "4d6>=5"
 

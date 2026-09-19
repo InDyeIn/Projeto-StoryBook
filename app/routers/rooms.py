@@ -15,7 +15,9 @@ from app.deps import (
 )
 from app.dice import DiceError, describe, parse_roll_command, roll
 from app.models import (
+    BackgroundFit,
     Character,
+    DistanceMode,
     GridType,
     MessageKind,
     Room,
@@ -55,7 +57,7 @@ from app.services import (
     serialize_token,
     unique_slug,
 )
-from app.systems import apply_room_difficulty, get_system, resolve_formula
+from app.systems import apply_room_difficulty, get_system, read_pool, resolve_formula
 
 router = APIRouter(prefix="/api/salas", tags=["salas"])
 
@@ -346,16 +348,25 @@ async def remove_member(slug: str, member_id: str, user: CurrentUser, db: DbDep)
 # ===========================================================================
 
 
+def _converter_enums_de_cena(data: dict) -> dict:
+    """Troca as strings vindas do cliente pelos enums do modelo."""
+    for campo, enum_classe in (
+        ("grid_type", GridType),
+        ("background_fit", BackgroundFit),
+        ("distance_mode", DistanceMode),
+    ):
+        if data.get(campo):
+            data[campo] = enum_classe(data[campo])
+    return data
+
+
 @router.post("/{slug}/cenas", dependencies=[Depends(verify_csrf)])
 async def create_scene(slug: str, payload: SceneIn, user: CurrentUser, db: DbDep):
     room = load_room(db, slug)
     member = require_membership(db, room, user)
     require_permission(member, "scene.create")
 
-    data = payload.model_dump(exclude_unset=True)
-    if "grid_type" in data and data["grid_type"]:
-        data["grid_type"] = GridType(data["grid_type"])
-
+    data = _converter_enums_de_cena(payload.model_dump(exclude_unset=True))
     scene = Scene(room_id=room.id, order=len(room.scenes), **data)
     db.add(scene)
     db.commit()
@@ -381,8 +392,7 @@ async def update_scene(
 
     if data:
         require_permission(member, "scene.edit")
-        if "grid_type" in data and data["grid_type"]:
-            data["grid_type"] = GridType(data["grid_type"])
+        data = _converter_enums_de_cena(data)
         for key, value in data.items():
             setattr(scene, key, value)
 
@@ -621,13 +631,17 @@ async def _roll_and_publish(db, room, member, user, formula: str, rotulo, *, pri
     if private and not can(member, "roll.private"):
         raise HTTPException(403, "Você não pode rolar em segredo nesta mesa.")
 
+    # Leitura própria do sistema: Caos gerado, Triscendência etc.
+    payload = resultado.to_dict()
+    payload.update(read_pool(get_system(room.system_id), resultado))
+
     message = RoomMessage(
         room_id=room.id,
         author_id=user.id,
         kind=MessageKind.ROLL,
         body=describe(resultado),
-        payload=resultado.to_dict(),
+        payload=payload,
         whisper_to=user.id if private else None,
     )
     data = await _publish(db, room, message)
-    return {"message": data, "roll": resultado.to_dict()}
+    return {"message": data, "roll": payload}

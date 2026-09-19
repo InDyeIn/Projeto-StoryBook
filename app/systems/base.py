@@ -107,6 +107,29 @@ class QuickRoll:
 
 
 @dataclass
+class PoolRules:
+    """Como ler uma rolagem de pool além de contar sucessos.
+
+    Declarado por dados para não precisar de código por sistema. O Triangle
+    Agency usa os três campos: cada dado que não acerta gera Caos, e exatamente
+    três acertos é Triscendência (que zera o Caos daquela jogada).
+    """
+
+    #: Nome do recurso que cada dado SEM sucesso gera (ex.: "Caos").
+    resource_per_failure: str | None = None
+    #: Quantidade exata de sucessos que dispara um destaque (ex.: 3).
+    highlight_at: int | None = None
+    #: Nome do destaque (ex.: "Triscendência").
+    highlight_name: str | None = None
+    #: O destaque zera o recurso gerado naquela jogada.
+    highlight_clears_resource: bool = True
+    #: Palavra usada no chat: "2 êxitos", "2 sucessos"…
+    success_word: str = "sucesso"
+    #: Texto curto quando não há nenhum sucesso.
+    failure_note: str | None = None
+
+
+@dataclass
 class RpgSystem:
     id: str
     name: str
@@ -120,6 +143,8 @@ class RpgSystem:
     quick_rolls: list[QuickRoll] = field(default_factory=list)
     room_options: list[SystemOption] = field(default_factory=list)
     default_roll: str = "d20"
+    #: Leitura extra das rolagens de pool (Caos, Triscendência…).
+    pool_rules: PoolRules | None = None
     #: "draft" faz a ficha exibir um aviso de que ainda falta conferir o livro
     status: Literal["draft", "stable"] = "stable"
     draft_note: str | None = None
@@ -140,6 +165,7 @@ class RpgSystem:
             "sections": [asdict(section) for section in self.sections],
             "token_bars": [asdict(bar) for bar in self.token_bars],
             "quick_rolls": [asdict(quick) for quick in self.quick_rolls],
+            "pool_rules": asdict(self.pool_rules) if self.pool_rules else None,
         }
 
     def summary(self) -> dict:
