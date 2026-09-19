@@ -18,7 +18,7 @@ from app.security import csrf_token
 from app.services import time_ago
 from app.systems import get_path, get_system, list_systems
 
-TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+TEMPLATES_DIR = settings.templates_dir
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 

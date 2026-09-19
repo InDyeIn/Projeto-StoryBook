@@ -100,27 +100,68 @@ with sync_playwright() as p:
     pagina.wait_for_selector(".ficha-secao", timeout=8000)
     pagina.wait_for_timeout(600)
     pagina.screenshot(path=f"{SHOT}/05-ficha.png")
-    print("8. ficha:", pagina.locator(".ficha-secao").count(), "seções |",
+    secoes = [t.strip() for t in pagina.locator(".ficha-secao-topo h4").all_inner_texts()]
+    print("8. ficha:", len(secoes), "seções |",
           pagina.locator(".campo").count(), "campos |",
-          pagina.locator(".dot").count(), "bolinhas")
+          pagina.locator(".recurso").count(), "recursos")
+    print("   seções:", secoes)
+    if "ARC" not in secoes:
+        erros.append("ficha do Triangle Agency sem a seção ARC")
 
-    # 9) Editar a ficha: clicar na 5a bolinha de Burocracia
-    dots = pagina.locator(".dots").first
-    dots.locator(".dot").nth(4).click()
-    pagina.wait_for_timeout(1200)
-    acesas = dots.locator(".dot.is-on").count()
-    print("9. bolinhas acesas após clicar na 5a:", acesas, "OK" if acesas == 5 else "FALHOU")
-    if acesas != 5:
-        erros.append(f"dots: esperava 5 acesas, veio {acesas}")
+    # 9) Editar a ficha: escolher uma Anomalia e subir uma Garantia de Qualidade
+    anomalia = pagina.locator('.campo:has-text("A — ANOMALIA") select').first
+    anomalia.select_option("sussurro")
+    pagina.wait_for_timeout(900)
 
-    # 10) Rolar a partir da ficha
-    pagina.locator(".btn-rolar").first.click()
+    gq = pagina.locator(".recurso").first
+    # Numa ficha nova o máximo é 0 e os botões ficam travados de propósito.
+    travado = gq.locator(".recurso-passo").last.is_disabled()
+    print("9. GQ sem máximo: botão travado =", travado, "OK" if travado else "FALHOU")
+    if not travado:
+        erros.append("o + da GQ deveria estar travado sem máximo definido")
+
+    # Define o máximo e então o + passa a funcionar.
+    gq.locator("input").last.fill("3")
+    gq.locator("input").last.dispatch_event("input")
+    pagina.wait_for_timeout(300)
+    gq.locator(".recurso-passo").last.click()
+    gq.locator(".recurso-passo").last.click()
     pagina.wait_for_timeout(1200)
+    atual = gq.locator("input").first.input_value()
+    print("   Anomalia escolhida e GQ ajustada para", atual,
+          "OK" if atual == "2" else "FALHOU")
+    if atual != "2":
+        erros.append(f"GQ: esperava 2, veio {atual}")
+
+    # A edição precisa ter sido gravada, não só mudado na tela.
+    pagina.reload(wait_until="networkidle")
+    pagina.wait_for_selector("#mapa-mundo", timeout=10000)
+    pagina.wait_for_timeout(1200)
+    pagina.click('[data-aba="fichas"]')
+    pagina.wait_for_timeout(500)
+    pagina.click("#lista-fichas button:has-text(\'abrir\')")
+    pagina.wait_for_selector(".ficha-secao", timeout=8000)
+    pagina.wait_for_timeout(800)
+    persistiu = pagina.locator('.campo:has-text("A — ANOMALIA") select').first.input_value()
+    print("   após recarregar, Anomalia =", persistiu,
+          "OK" if persistiu == "sussurro" else "FALHOU")
+    if persistiu != "sussurro":
+        erros.append("a edição da ficha não persistiu")
+
+    # 10) Jogada da Agência: 6d4 contando os 3s
     pagina.screenshot(path=f"{SHOT}/06-ficha-editada.png")
     pagina.click("#modal-ficha [data-modal-close]")
     pagina.wait_for_timeout(400)
-    total_rolagens = pagina.locator(".rolagem").count()
-    print("10. rolagens no chat:", total_rolagens)
+    pagina.click('[data-aba="chat"]')
+    pagina.wait_for_timeout(300)
+    pagina.locator("#chat-dicas .chip", has_text="Jogada da Agência").click()
+    pagina.wait_for_timeout(900)
+    ultima = pagina.locator(".rolagem").last
+    faces = ultima.locator(".face").count()
+    tem_caos = ultima.locator(".rolagem-recurso").count() == 1
+    print("10. jogada da Agência:", faces, "dados | mostra Caos:", tem_caos)
+    if faces != 6 or not tem_caos:
+        erros.append(f"jogada da Agência: {faces} dados, Caos={tem_caos}")
 
     # 11) Aba Mesa (membros/permissões)
     pagina.click('[data-aba="mesa"]')

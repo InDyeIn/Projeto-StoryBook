@@ -28,7 +28,9 @@ logger = logging.getLogger("storybook")
 async def lifespan(_app: FastAPI):
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     init_db()
-    logger.info("StoryBook %s pronto em %s", __version__, settings.base_url)
+    # Quem sabe o endereço de verdade é quem subiu o servidor (run.py, o
+    # uvicorn ou desktop.py) — aqui a porta pode ter mudado.
+    logger.info("StoryBook %s iniciado (dados em %s)", __version__, settings.upload_dir.parent)
     yield
 
 
@@ -41,7 +43,8 @@ app = FastAPI(
     redoc_url=None,
 )
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Caminho absoluto: empacotado, o diretório de trabalho não é o do programa.
+app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 
 @app.middleware("http")

@@ -5,7 +5,33 @@ Roteiro de 15 minutos que passa por tudo que já funciona. Cada passo diz
 
 ---
 
-## Parte 0 — Colocar no ar (uma vez)
+## O caminho mais curto: o aplicativo
+
+Se você só quer usar, não precisa de Python nem de terminal.
+
+1. No GitHub, **Actions** → a execução mais recente → **Artifacts** →
+   `StoryBook-windows`.
+2. Descompacte e abra o **StoryBook.exe**.
+3. Crie a sua conta na primeira tela.
+
+Pronto — é um programa com janela própria. Os seus dados ficam em
+`%LOCALAPPDATA%\StoryBook` e sobrevivem a atualizações do executável.
+
+Para jogar com amigos da mesma rede, abra pelo Prompt de Comando:
+
+```powershell
+StoryBook.exe --rede
+```
+
+O título da janela passa a mostrar o endereço que eles digitam no navegador.
+
+> O `.exe` não traz a mesa de demonstração — ele começa vazio, com a sua conta.
+> O roteiro abaixo usa os dados de demonstração, que só existem no modo
+> desenvolvedor.
+
+---
+
+## Parte 0 — Colocar no ar (uma vez, modo desenvolvedor)
 
 Você precisa de **Python 3.11 ou mais novo**. Nada além disso: o banco é SQLite
 e é criado sozinho.
@@ -125,19 +151,30 @@ Os botões abaixo do campo (**d6**, **2d6**, **d20**) rolam com um clique.
 ### 5. Abrir e editar uma ficha
 Aba **Fichas** → botão **abrir** na ficha do *Agente Teixeira*.
 
-**Deve aparecer:** a ficha com **7 seções** e um aviso amarelo no topo dizendo
-que a ficha do Triangle Agency ainda é provisória (isso é proposital — ver
-o fim deste arquivo).
+**Deve aparecer:** a ficha com **8 seções**, montada sobre as regras do livro:
 
-Agora:
-1. Clique na **6ª bolinha** de *Burocracia*. Ela acende junto com as anteriores.
-2. Clique no **🎲** ao lado de *Burocracia*.
+- **ARC** — Anomalia, Realidade e Competência, com as nove opções de cada;
+- **Habilidades Anômalas** — as três que a Anomalia concede;
+- **Qualidades e Garantias de Qualidade** — as nove Qualidades, cada uma com
+  GQs gastáveis (9 no total, distribuídas em três);
+- **Situação funcional** — Burnout, Méritos e Deméritos;
+- Relacionamentos, Requisições e anotações.
 
-**Deve acontecer:** a rolagem no chat sai como `6d6>=4` — ou seja, ela **leu o
-valor que você acabou de mudar**. Esse é o ponto principal do sistema de fichas.
+Experimente:
+1. Escolha uma **Anomalia** no seletor.
+2. Numa Qualidade, defina o **máximo** (o número da direita) e depois use
+   **+** e **−** no atual. Sem máximo definido, os botões ficam travados de
+   propósito — é o estado de uma ficha recém-criada.
+3. Recarregue a página (F5) e reabra a ficha: tudo continua lá.
 
-Também dá para mexer nas trilhas (**Realidade**, **Confiança**) com os botões
-**−** e **+**, e adicionar linhas em *Equipamento*.
+### 3b. A jogada da Agência
+No chat, clique em **Jogada da Agência** (ou escreva `/r 6d4=3`).
+
+**Deve aparecer:** seis dados de quatro faces, com os **3s** destacados, e
+abaixo quanto de **Caos** aquela jogada gerou — um por dado que não saiu 3.
+
+Role umas quantas vezes até sair **exatamente três 3s**: o cartão fica dourado
+e mostra **✦ Triscendência** — sucesso sem gerar Caos nenhum.
 
 ### 6. Ações sobre um token
 Clique num token no mapa e vá na aba **Mesa**.
@@ -152,12 +189,35 @@ Regional*. Clique na segunda.
 **Deve acontecer:** o mapa inteiro troca — e trocaria para todos os jogadores
 ao mesmo tempo.
 
-### 8. Editar a cena
+### 8. Editar a cena e enviar um mapa
 Aba **Cena**: mude a grade para **Hexagonal**, ou o tamanho da célula, e clique
-em **Salvar cena**.
+em **Salvar cena**. A grade muda na hora.
 
-**Deve acontecer:** a grade muda na hora. Dá para enviar uma imagem de mapa em
-*Imagem do mapa* — ela aparece para todo mundo assim que o upload termina.
+Agora o teste que importa: em *Imagem do mapa*, envie uma imagem **fora da
+proporção da cena** (uma bem larga, por exemplo).
+
+**Deve acontecer:** a cena se redimensiona sozinha para o tamanho da imagem em
+casas, e o mapa aparece **sem achatar**. Se quiser conferir, há o seletor
+*Enquadramento do fundo*:
+
+| Opção | O que faz |
+|---|---|
+| Caber inteira | mostra tudo, sem distorcer (padrão) |
+| Preencher | ocupa a cena toda, cortando as sobras |
+| Tamanho original | 1 pixel da imagem = 1 pixel do mapa |
+| Repetir lado a lado | para texturas |
+| Esticar | força no retângulo — **este distorce**, e é o único que faz isso |
+
+O botão **Ajustar a cena à imagem** refaz o cálculo a qualquer momento.
+
+### 8b. Régua
+Clique em **📏 Régua** na barra do mapa (ou segure **Shift**) e arraste.
+
+**Deve aparecer:** uma linha com a distância em metros e em casas. Quem mais
+estiver na mesa vê a sua régua enquanto você mede, com o seu nome.
+
+Na aba **Cena** dá para mudar quanto vale uma casa, o nome da unidade e como
+contar a diagonal (por casa, linha reta ou em cruz).
 
 ---
 
@@ -283,6 +343,14 @@ Em `dois_usuarios.py`, o último passo tenta de propósito uma ação proibida �
 
 Apaga o banco e recria a mesa de demonstração. Útil depois de bagunçar tudo.
 
+> **Pare o servidor antes.** O SQLite não gosta de ter o arquivo trocado
+> embaixo de quem está usando: se você resetar com o `run.py` rodando, ele
+> continua preso ao arquivo antigo e passa a responder "no such table". Feche
+> com Ctrl+C, rode o reset e suba de novo.
+
+No aplicativo (`.exe`), recomeçar do zero é apagar a pasta
+`%LOCALAPPDATA%\StoryBook`.
+
 ---
 
 ## Se algo não funcionar
@@ -344,11 +412,9 @@ bibliotecas já têm pacote pronto para ela.
 
 ## O que **ainda não** funciona (é esperado)
 
-- **A ficha do Triangle Agency é provisória.** Foi escrita antes do PDF do livro
-  ser anexado. A mecânica funciona (pool de d6, competências, trilhas, anomalia),
-  mas os **nomes e números são marcadores meus** e precisam ser conferidos com o
-  livro. É por isso que aparece o aviso amarelo no topo da ficha. O que conferir
-  está listado no topo de `app/systems/triangle_agency.py`.
-- Sem névoa de guerra e sem medição de distância no mapa.
+- Sem névoa de guerra no mapa.
 - Sem recuperação de senha por e-mail.
 - Um processo só: ao subir na VPS, use `--workers 1` (explicado no README).
+- A reserva de **Caos** é mostrada por jogada, mas ainda não há um contador da
+  mesa — por enquanto quem soma é o GM.
+- O `.exe` é gerado só para Windows. Em Linux e macOS, rode pelo `run.py`.

@@ -256,8 +256,9 @@ triangle_agency = RpgSystem(
             id="qualidades",
             title="Qualidades e Garantias de Qualidade",
             description=(
-                "Cada GQ gasta ajusta a face de um dado. Começa com 9 GQs "
-                "distribuídas em 3 Qualidades. Usar uma Qualidade sem GQ causa Burnout."
+                "O número da direita é o seu máximo; o da esquerda, quanto ainda "
+                "resta. Comece distribuindo 9 GQs entre três Qualidades. Cada GQ "
+                "gasta ajusta a face de um dado; usar uma Qualidade sem GQ causa Burnout."
             ),
             columns=3,
             fields=[

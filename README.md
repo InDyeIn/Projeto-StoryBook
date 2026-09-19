@@ -8,7 +8,69 @@ rodando na sua máquina ou na sua VPS.
 
 ---
 
-## Rodando local em 3 comandos
+## Como usar
+
+Há duas formas, e elas não competem:
+
+| | Para quê |
+|---|---|
+| **StoryBook.exe** | Baixar e abrir no Windows. Sem terminal, sem instalar Python. É um programa. |
+| **Servidor** | Rodar na VPS para a mesa acessar de qualquer lugar, a qualquer hora. |
+
+O código é o mesmo nos dois casos — o executável só embrulha o servidor numa
+janela e guarda os dados na pasta do usuário.
+
+---
+
+## Aplicativo para Windows
+
+### Baixar
+
+O executável é gerado automaticamente a cada push. No GitHub: **Actions** → a
+execução mais recente → **Artifacts** → `StoryBook-windows`. Descompacte e
+abra o `StoryBook.exe`.
+
+Para virar um release permanente:
+
+```bash
+git tag v0.1.0
+git push --tags
+```
+
+### Gerar você mesmo (no Windows)
+
+```powershell
+py -m venv .venv
+.venv\Scripts\pip install -r requirements-desktop.txt
+.venv\Scripts\pyinstaller storybook.spec
+```
+
+O resultado é `dist\StoryBook.exe`, um arquivo só (~40 MB).
+
+> O PyInstaller **não** faz compilação cruzada: só o Windows gera o `.exe`.
+> Por isso existe o workflow em `.github/workflows/build-windows.yml`.
+
+### Rodando o aplicativo
+
+Abrir o `.exe` sobe o servidor por dentro e abre uma janela do programa. Na
+primeira vez, crie a sua conta.
+
+| Modo | Comando |
+|---|---|
+| Só nesta máquina | abrir o `.exe` normalmente |
+| Amigos na mesma rede (Wi-Fi/LAN) | `StoryBook.exe --rede` — o título da janela mostra o endereço que eles digitam |
+| Abrir no navegador em vez da janela | `StoryBook.exe --navegador` |
+
+Os dados ficam em `%LOCALAPPDATA%\StoryBook`: banco, uploads e a chave de
+sessão. Ficam **fora** do executável, então atualizar o programa não apaga as
+suas mesas. Para começar do zero, apague essa pasta.
+
+> Para jogar pela internet (não só na rede local), o caminho é a VPS — veja
+> **Subindo na VPS**. O `--rede` sozinho só alcança quem está na mesma casa.
+
+---
+
+## Rodando local em 3 comandos (desenvolvimento)
 
 Requisito: **Python 3.11 ou superior**. Nada além disso — o banco padrão é
 SQLite, então não precisa de Docker nem de servidor de banco.
@@ -124,6 +186,8 @@ cargos novos. O mestre nunca consegue se trancar para fora da própria mesa.
 ## Estrutura
 
 ```
+desktop.py         lançador do aplicativo (janela nativa + servidor embutido)
+storybook.spec     receita do PyInstaller para gerar o .exe
 app/
   main.py          aplicação FastAPI, rotas e tratamento de erro
   config.py        configuração (lê o .env)

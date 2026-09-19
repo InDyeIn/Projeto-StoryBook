@@ -216,19 +216,45 @@
       });
 
       const linha = el("div", { class: "recurso-valores" });
+      let menos = null;
+      let mais = null;
+
       if (editavel) {
-        linha.append(el("button", {
-          type: "button", class: "recurso-passo", onClick: () => ajustar(-1), title: "Diminuir",
-        }, "−"));
+        menos = el("button", {
+          type: "button", class: "recurso-passo", onClick: () => ajustar(-1),
+        }, "−");
+        mais = el("button", {
+          type: "button", class: "recurso-passo", onClick: () => ajustar(1),
+        }, "+");
+        linha.append(menos);
       }
       linha.append(entradaAtual, el("span", { class: "muted" }, "/"), entradaMax);
-      if (editavel) {
-        linha.append(el("button", {
-          type: "button", class: "recurso-passo", onClick: () => ajustar(1), title: "Aumentar",
-        }, "+"));
-      }
+      if (mais) linha.append(mais);
 
-      return el("div", { class: "recurso" }, linha, el("div", { class: "recurso-barra" }, preenchimento));
+      /* Com máximo zero os botões não têm o que fazer. Em vez de ficarem
+         clicáveis e silenciosos, desligam e dizem o motivo — numa ficha nova
+         do Triangle Agency todas as Qualidades começam assim, e o jogador
+         precisa definir o máximo antes. */
+      function ajustarBotoes() {
+        for (const [botao, texto] of [[menos, "Diminuir"], [mais, "Aumentar"]]) {
+          if (!botao) continue;
+          const travado = maximo <= 0;
+          botao.disabled = travado;
+          botao.title = travado ? "Defina o máximo antes (campo à direita)." : texto;
+        }
+      }
+      ajustarBotoes();
+
+      entradaMax.addEventListener("input", ajustarBotoes);
+
+      const caixa = el("div", { class: "recurso" },
+        linha,
+        el("div", { class: "recurso-barra" }, preenchimento));
+
+      if (editavel && maximo <= 0) {
+        caixa.append(el("span", { class: "hint recurso-aviso" }, "sem máximo definido"));
+      }
+      return caixa;
     }
 
     function corDaBarra(caminho) {

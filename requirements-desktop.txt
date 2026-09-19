@@ -1,0 +1,8 @@
+-r requirements.txt
+
+# --- Aplicativo de mesa ---
+# Janela nativa. No Windows usa o WebView2 do Edge, já presente no Windows 10/11.
+pywebview>=5.3
+
+# Empacotamento em .exe (só é necessário para gerar o executável)
+pyinstaller>=6.11

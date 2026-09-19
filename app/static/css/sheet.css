@@ -162,7 +162,9 @@
   background: var(--surface-2); color: var(--ink-soft);
   cursor: pointer; font-size: .9rem; line-height: 1;
 }
-.recurso-passo:hover { border-color: var(--accent); color: var(--ink); }
+.recurso-passo:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.recurso-passo:disabled { opacity: .35; cursor: not-allowed; }
+.recurso-aviso { color: var(--ink-faint); font-style: italic; }
 
 /* --- Listas ----------------------------------------------------------- */
 .lista { border: 1px solid var(--line-soft); border-radius: var(--r); overflow: hidden; }
